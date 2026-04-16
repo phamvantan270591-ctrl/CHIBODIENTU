@@ -4,26 +4,28 @@ import requests
 import json
 from datetime import datetime
 
-# --- CẤU HÌNH HỆ THỐNG ---
+# --- CẤU HÌNH ---
 SHEET_ID = "1WKGPX3adetYHr7Z-yIegxADiRkrw8KWf5WZ6dQeIxPM"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
 SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsKDIo8o_rVt_dLGyq5puWNp1XaZLzeBxaesZyQLuMXbqqSkxG9lJXq8gOE4gGy2H-/exec"
 
-# SỐ ĐIỆN THOẠI QUẢN TRỊ VIÊN (Của đồng chí)
+# Số điện thoại Admin (Đã thay số của đồng chí)
 ADMIN_PHONE = "0927022753"
 
 st.set_page_config(page_title="CHI BO DIEN TU", layout="centered")
 
-# Hàm gửi dữ liệu về Sheets
+# Hàm làm sạch số điện thoại (Chỉ giữ lại các chữ số)
+def clean_phone_number(phone):
+    return ''.join(filter(str.isdigit, str(phone)))
+
 def send_to_sheets(sheet_name, row_data):
     payload = {"sheetName": sheet_name, "values": row_data}
     try:
         requests.post(SCRIPT_URL, data=json.dumps(payload))
         return True
-    except:
-        return False
+    except: return False
 
-# --- CƠ CHẾ ĐĂNG NHẬP ---
+# --- KIỂM TRA TRẠNG THÁI ĐĂNG NHẬP ---
 if 'auth' not in st.session_state:
     st.session_state.auth = False
     st.session_state.user = None
@@ -32,51 +34,57 @@ if not st.session_state.auth:
     st.title("🏛️ CHI BO DIEN TU")
     st.subheader("Xac thuc Dang vien")
     
-    # Dùng form để xử lý đăng nhập 1 lần ăn ngay
-    with st.form("login_section"):
-        sdt_input = st.text_input("Nhap so dien thoai cua dong chi:", placeholder="Vi du: 09...")
-        btn_login = st.form_submit_button("VAO HE THONG")
+    with st.form("login_form"):
+        sdt_input = st.text_input("Nhap so dien thoai cua dong chi:").strip()
+        submit = st.form_submit_button("VAO HE THONG")
         
-        if btn_login:
+        if submit:
             if not sdt_input:
                 st.warning("Vui long nhap so dien thoai!")
             else:
                 try:
-                    # Đọc danh sách từ Sheets
+                    # Tải danh sách đảng viên
                     df = pd.read_csv(CSV_URL + "DanhSach")
-                    df['Số điện thoại'] = df['Số điện thoại'].astype(str).str.strip()
                     
-                    # Kiểm tra số điện thoại
-                    user_match = df[df['Số điện thoại'] == sdt_input.strip()]
+                    # Làm sạch SĐT người nhập và SĐT trong danh sách để so khớp
+                    input_cleaned = clean_phone_number(sdt_input)
                     
-                    if not user_match.empty:
+                    # Tìm kiếm (so khớp 9 số cuối để tránh lỗi mất số 0 đầu)
+                    match = None
+                    for index, row in df.iterrows():
+                        sheet_phone = clean_phone_number(row['Số điện thoại'])
+                        if input_cleaned.endswith(sheet_phone[-9:]) if len(sheet_phone) >= 9 else input_cleaned == sheet_phone:
+                            match = row.to_dict()
+                            break
+                    
+                    if match:
                         st.session_state.auth = True
-                        st.session_state.user = user_match.iloc[0].to_dict()
-                        st.rerun() # Tự động chuyển trang ngay lập tức
+                        st.session_state.user = match
+                        st.rerun()
                     else:
-                        st.error("So dien thoai khong co trong danh sach!")
+                        st.error(f"Khong tim thay SĐT {sdt_input} trong danh sach Chi bo!")
                 except Exception as e:
-                    st.error("Loi ket noi du lieu. Vui long kiem tra file Sheets!")
+                    st.error(f"Loi ket noi: Vui long kiem tra ten trang tinh 'DanhSach' trong file Sheets!")
 
 else:
     user = st.session_state.user
-    # Kiểm tra xem có phải là đồng chí (Admin) không
-    is_admin = str(user['Số điện thoại']) == ADMIN_PHONE
+    # Kiểm tra quyền Quản trị
+    user_sdt_clean = clean_phone_number(user['Số điện thoại'])
+    admin_sdt_clean = clean_phone_number(ADMIN_PHONE)
+    is_admin = user_sdt_clean.endswith(admin_sdt_clean[-9:])
 
-    # --- MENU ĐIỀU HƯỚNG ---
-    st.sidebar.title(f"Chào Đ/c \n{user['Họ tên']}")
+    st.sidebar.title(f"Đ/c: {user['Họ tên']}")
     
-    options = ["🏠 Diem danh hop", "📖 Hoc tap", "👤 Ho so ca nhan"]
+    # Menu phân quyền
+    nav = ["🏠 Diem danh hop", "📖 Hoc tap", "👤 Ho so"]
     if is_admin:
-        options.append("📊 QUAN LY CHI BO") # Chỉ Admin mới thấy mục này
-        
-    choice = st.sidebar.radio("CHUC NANG", options)
+        nav.append("📊 QUAN LY")
+    
+    choice = st.sidebar.radio("CHUC NANG", nav)
 
-    # 1. PHẦN ĐIỂM DANH (Dành cho tất cả mọi người)
+    # 1. ĐIỂM DANH
     if choice == "🏠 Diem danh hop":
-        st.header("📝 Diem danh hop Chi bo")
-        st.info("Bam nut duoi day de xac nhan su co mat cua dong chi.")
-        
+        st.header("Diem danh hop Chi bo")
         if st.button("XAC NHAN CO MAT", use_container_width=True):
             now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             data = [now, user['Số điện thoại'], user['Họ tên'], "Có mặt", ""]
@@ -84,41 +92,26 @@ else:
                 st.success("Da ghi nhan thanh cong!")
                 st.balloons()
 
-    # 2. PHẦN QUẢN LÝ (CHỈ ĐỒNG CHÍ MỚI THẤY)
-    elif is_admin and choice == "📊 QUAN LY CHI BO":
-        st.title("🖥️ PHONG DIEU HANH QUAN TRI")
-        
-        tab1, tab2 = st.tabs(["Lich su Diem danh", "Danh sach Chi bo"])
-        
-        with tab1:
-            st.subheader("Danh sach vua diem danh (Moi nhat)")
-            try:
-                df_logs = pd.read_csv(CSV_URL + "NhatKyHop")
-                st.dataframe(df_logs.tail(15), use_container_width=True)
-            except:
-                st.info("Chua co du lieu diem danh moi.")
-                
-        with tab2:
-            st.subheader("Danh sach Dang vien hien tai")
-            try:
-                df_ds = pd.read_csv(CSV_URL + "DanhSach")
-                st.write(f"Tong so: {len(df_ds)} dong chi.")
-                st.table(df_ds[['Họ tên', 'Chức vụ', 'Số điện thoại']])
-            except:
-                st.error("Khong the tai danh sach.")
+    # 2. QUẢN LÝ (Chỉ Admin thấy)
+    elif choice == "📊 QUAN LY":
+        st.title("PHONG DIEU HANH")
+        st.subheader("Lich su diem danh moi nhat")
+        try:
+            df_log = pd.read_csv(CSV_URL + "NhatKyHop")
+            st.dataframe(df_log.tail(20), use_container_width=True)
+        except:
+            st.info("Chua co du lieu diem danh.")
 
     # 3. CÁC MỤC KHÁC
     elif choice == "📖 Hoc tap":
-        st.header("Tai lieu Hoc tap")
-        st.write("- Chuyen de thang nay: Tu tuong Ho Chi Minh.")
+        st.header("Tai lieu sinh hoat")
+        st.write("- Chuyen de thang nay: Hoc tap va lam theo tu tuong HCM")
         
-    elif choice == "👤 Ho so ca nhan":
-        st.header("Thong tin Dang vien")
+    elif choice == "👤 Ho so":
+        st.header("Thong tin ca nhan")
         st.write(f"**Ho ten:** {user['Họ tên']}")
         st.write(f"**Chuc vu:** {user['Chức vụ']}")
-        st.write(f"**So dien thoai:** {user['Số điện thoại']}")
 
-    # Nút đăng xuất
     if st.sidebar.button("Dang xuat"):
         st.session_state.auth = False
         st.rerun()
