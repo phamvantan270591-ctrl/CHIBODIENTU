@@ -7,6 +7,7 @@ import pytz
 
 # --- THÔNG TIN HỆ THỐNG ---
 SHEET_ID = "1WKGPX3adetYHr7Z-yIegxADiRkrw8KWf5WZ6dQeIxPM"
+# Link lấy dữ liệu (ép kiểu lấy toàn bộ bảng)
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&gid=0"
 LOG_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=NhatKyHop"
 SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsKDIo8o_rVt_dLGyq5puWNp1XaZLzeBxaesZyQLuMXbqqSkxG9lJXq8gOE4gGy2H-/exec"
@@ -15,13 +16,14 @@ ADMIN_NUM = "0927022753"
 
 st.set_page_config(page_title="CHI BỘ ĐIỆN TỬ", layout="centered")
 
-# --- GIAO DIỆN CSS ---
+# --- CSS GIAO DIỆN ---
 st.markdown("""
     <style>
     .stApp { background-color: #ffffff; }
     .stButton>button { width: 100%; border-radius: 12px; height: 3.5em; background-color: #d32f2f; color: white; font-weight: bold; }
-    .profile-card { padding: 20px; border-radius: 12px; border-left: 10px solid #d32f2f; background-color: #f8f9fa; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
-    .info-row { margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+    .profile-card { padding: 20px; border-radius: 15px; border-left: 10px solid #d32f2f; background-color: #f8f9fa; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    .info-label { color: #666; font-size: 14px; margin-bottom: 2px; }
+    .info-value { color: #000; font-weight: bold; font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -41,8 +43,10 @@ if not st.session_state.auth:
         sdt_nhap = st.text_input("📱 Nhập số điện thoại Đảng viên:", placeholder="09xxxxxxxx")
         if st.form_submit_button("ĐĂNG NHẬP"):
             try:
-                df = pd.read_csv(CSV_URL, dtype=str)
+                # Đọc dữ liệu, nếu không có tiêu đề sẽ tự đặt tên cột là 0, 1, 2...
+                df = pd.read_csv(CSV_URL, dtype=str, header=None)
                 target = clean_num(sdt_nhap)
+                
                 match_row = None
                 for _, row in df.iterrows():
                     for val in row.values:
@@ -64,10 +68,10 @@ else:
     is_admin = clean_num(u['phone']) == clean_num(ADMIN_NUM)
     
     with st.sidebar:
-        # Lấy tên hiển thị linh hoạt
+        # Cố gắng tìm một cái tên để chào
         display_name = "Đồng chí"
-        for k, v in u['data'].items():
-            if any(x in str(k).lower() for x in ['họ tên', 'tên', 'hoten']):
+        for v in u['data'].values():
+            if v and not str(v).isdigit() and len(str(v)) > 3:
                 display_name = str(v)
                 break
         
@@ -87,24 +91,19 @@ else:
             payload = {"sheetName": "NhatKyHop", "values": [gio, u['phone'], display_name, "Có mặt"]}
             try:
                 requests.post(SCRIPT_URL, data=json.dumps(payload))
-                st.success("Đã ghi nhận điểm danh!")
+                st.success("Đã điểm danh thành công!")
                 st.balloons()
             except: st.error("Lỗi gửi dữ liệu.")
 
     elif choice == "👤 Hồ sơ":
         st.subheader("👤 Thông tin Đảng viên")
-        with st.container():
-            st.markdown('<div class="profile-card">', unsafe_allow_html=True)
-            # Tự động hiển thị TẤT CẢ các cột có dữ liệu trong Sheets
-            for key, value in u['data'].items():
-                if "Unnamed" not in str(key): # Bỏ qua các cột trống vô danh
-                    st.markdown(f"""
-                    <div class="info-row">
-                        <span style="color: #666; font-size: 14px;">{key}</span><br>
-                        <span style="color: #000; font-weight: bold; font-size: 18px;">{value}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="profile-card">', unsafe_allow_html=True)
+        # Hiển thị tất cả các giá trị tìm thấy trong hàng
+        for idx, value in u['data'].items():
+            if pd.notna(value):
+                st.markdown(f'<div class="info-label">Thông tin {idx + 1}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-value">{value}</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     elif choice == "📊 QUẢN TRỊ" and is_admin:
         st.markdown("<h2 style='color: #d32f2f;'>🖥️ QUẢN TRỊ</h2>", unsafe_allow_html=True)
