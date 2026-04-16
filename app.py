@@ -6,17 +6,19 @@ from datetime import datetime
 
 # --- CẤU HÌNH ---
 SHEET_ID = "1WKGPX3adetYHr7Z-yIegxADiRkrw8KWf5WZ6dQeIxPM"
-# Lấy dữ liệu toàn bộ file để tránh lỗi sai tên trang tính
-CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+# Lấy dữ liệu dạng công khai
+CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsKDIo8o_rVt_dLGyq5puWNp1XaZLzeBxaesZyQLuMXbqqSkxG9lJXq8gOE4gGy2H-/exec"
 
+# Số điện thoại của đồng chí
 ADMIN_PHONE = "0927022753"
 
 st.set_page_config(page_title="CHI BO DIEN TU", layout="centered")
 
-# Hàm làm sạch số điện thoại (Chỉ giữ lại các chữ số)
-def clean_phone_number(phone):
-    return ''.join(filter(str.isdigit, str(phone)))
+# Hàm làm sạch số điện thoại để so khớp
+def clean_phone(p):
+    p_str = ''.join(filter(str.isdigit, str(p)))
+    return p_str[-9:] if len(p_str) >= 9 else p_str
 
 def send_to_sheets(sheet_name, row_data):
     payload = {"sheetName": sheet_name, "values": row_data}
@@ -25,93 +27,80 @@ def send_to_sheets(sheet_name, row_data):
         return True
     except: return False
 
-# --- KIỂM TRA TRẠNG THÁI ĐĂNG NHẬP ---
+# --- XỬ LÝ ĐĂNG NHẬP ---
 if 'auth' not in st.session_state:
     st.session_state.auth = False
-    st.session_state.user = None
+    st.session_state.user_info = None
 
 if not st.session_state.auth:
     st.title("🏛️ CHI BO DIEN TU")
-    st.subheader("Xac thuc Dang vien")
+    st.subheader("Xác thực Đảng viên")
     
     with st.form("login_form"):
-        sdt_input = st.text_input("Nhap so dien thoai cua dong chi:").strip()
-        submit = st.form_submit_button("VAO HE THONG")
+        sdt_nhap = st.text_input("Nhập số điện thoại của đồng chí:").strip()
+        submit = st.form_submit_button("VÀO HỆ THỐNG")
         
         if submit:
-            if not sdt_input:
-                st.warning("Vui long nhap so dien thoai!")
+            if not sdt_nhap:
+                st.warning("Vui lòng nhập số điện thoại!")
             else:
                 try:
-                    # Tải danh sách đảng viên
-                    df = pd.read_csv(CSV_URL + "DanhSach")
+                    # Đọc dữ liệu từ file Sheets
+                    df = pd.read_csv(CSV_URL)
+                    sdt_target = clean_phone(sdt_nhap)
                     
-                    # Làm sạch SĐT người nhập và SĐT trong danh sách để so khớp
-                    input_cleaned = clean_phone_number(sdt_input)
+                    match_found = False
+                    for _, row in df.iterrows():
+                        # Kiểm tra từng ô trong hàng để tìm số điện thoại
+                        for cell in row:
+                            if sdt_target == clean_phone(cell):
+                                st.session_state.auth = True
+                                # Lưu thông tin người dùng (Lấy cột đầu tiên làm tên)
+                                st.session_state.user_info = {
+                                    "name": str(row.iloc[0]),
+                                    "phone": str(sdt_nhap)
+                                }
+                                match_found = True
+                                break
+                        if match_found: break
                     
-                    # Tìm kiếm (so khớp 9 số cuối để tránh lỗi mất số 0 đầu)
-                    match = None
-                    for index, row in df.iterrows():
-                        sheet_phone = clean_phone_number(row['Số điện thoại'])
-                        if input_cleaned.endswith(sheet_phone[-9:]) if len(sheet_phone) >= 9 else input_cleaned == sheet_phone:
-                            match = row.to_dict()
-                            break
-                    
-                    if match:
-                        st.session_state.auth = True
-                        st.session_state.user = match
+                    if match_found:
                         st.rerun()
                     else:
-                        st.error(f"Khong tim thay SĐT {sdt_input} trong danh sach Chi bo!")
-                except Exception as e:
-                    st.error(f"Loi ket noi: Vui long kiem tra ten trang tinh 'DanhSach' trong file Sheets!")
+                        st.error(f"Không tìm thấy SĐT {sdt_nhap} trong danh sách!")
+                except:
+                    st.error("Lỗi kết nối! Đồng chí hãy kiểm tra quyền 'Chia sẻ' của file Sheets.")
 
 else:
-    user = st.session_state.user
-    # Kiểm tra quyền Quản trị
-    user_sdt_clean = clean_phone_number(user['Số điện thoại'])
-    admin_sdt_clean = clean_phone_number(ADMIN_PHONE)
-    is_admin = user_sdt_clean.endswith(admin_sdt_clean[-9:])
-
-    st.sidebar.title(f"Đ/c: {user['Họ tên']}")
+    # --- GIAO DIỆN SAU ĐĂNG NHẬP ---
+    user = st.session_state.user_info
+    is_admin = clean_phone(user['phone']) == clean_phone(ADMIN_PHONE)
     
-    # Menu phân quyền
-    nav = ["🏠 Diem danh hop", "📖 Hoc tap", "👤 Ho so"]
-    if is_admin:
-        nav.append("📊 QUAN LY")
+    st.sidebar.title(f"Chào Đ/c \n{user['name']}")
     
-    choice = st.sidebar.radio("CHUC NANG", nav)
+    menu = ["🏠 Điểm danh", "📖 Tài liệu"]
+    if is_admin: menu.append("📊 QUẢN TRỊ")
+    
+    choice = st.sidebar.radio("CHỨC NĂNG", menu)
 
-    # 1. ĐIỂM DANH
-    if choice == "🏠 Diem danh hop":
-        st.header("Diem danh hop Chi bo")
-        if st.button("XAC NHAN CO MAT", use_container_width=True):
-            now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            data = [now, user['Số điện thoại'], user['Họ tên'], "Có mặt", ""]
-            if send_to_sheets("NhatKyHop", data):
-                st.success("Da ghi nhan thanh cong!")
+    if choice == "🏠 Điểm danh":
+        st.header("Điểm danh họp Chi bộ")
+        if st.button("XÁC NHẬN CÓ MẶT", use_container_width=True):
+            time_now = datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+            if send_to_sheets("NhatKyHop", [time_now, user['phone'], user['name'], "Có mặt"]):
+                st.success("Đã điểm danh thành công!")
                 st.balloons()
 
-    # 2. QUẢN LÝ (Chỉ Admin thấy)
-    elif choice == "📊 QUAN LY":
-        st.title("PHONG DIEU HANH")
-        st.subheader("Lich su diem danh moi nhat")
+    elif choice == "📊 QUẢN TRỊ":
+        st.title("PHÒNG QUẢN TRỊ")
+        st.write("Dữ liệu điểm danh mới nhất:")
         try:
-            df_log = pd.read_csv(CSV_URL + "NhatKyHop")
-            st.dataframe(df_log.tail(20), use_container_width=True)
+            # Đọc lại file để cập nhật dữ liệu mới
+            df_log = pd.read_csv(CSV_URL) 
+            st.dataframe(df_log.tail(10), use_container_width=True)
         except:
-            st.info("Chua co du lieu diem danh.")
+            st.info("Chưa có dữ liệu.")
 
-    # 3. CÁC MỤC KHÁC
-    elif choice == "📖 Hoc tap":
-        st.header("Tai lieu sinh hoat")
-        st.write("- Chuyen de thang nay: Hoc tap va lam theo tu tuong HCM")
-        
-    elif choice == "👤 Ho so":
-        st.header("Thong tin ca nhan")
-        st.write(f"**Ho ten:** {user['Họ tên']}")
-        st.write(f"**Chuc vu:** {user['Chức vụ']}")
-
-    if st.sidebar.button("Dang xuat"):
+    if st.sidebar.button("Đăng xuất"):
         st.session_state.auth = False
         st.rerun()
