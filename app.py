@@ -6,10 +6,10 @@ from datetime import datetime
 
 # --- CẤU HÌNH ---
 SHEET_ID = "1WKGPX3adetYHr7Z-yIegxADiRkrw8KWf5WZ6dQeIxPM"
-CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
+# Lấy dữ liệu toàn bộ file để tránh lỗi sai tên trang tính
+CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
 SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsKDIo8o_rVt_dLGyq5puWNp1XaZLzeBxaesZyQLuMXbqqSkxG9lJXq8gOE4gGy2H-/exec"
 
-# Số điện thoại Admin (Đã thay số của đồng chí)
 ADMIN_PHONE = "0927022753"
 
 st.set_page_config(page_title="CHI BO DIEN TU", layout="centered")
