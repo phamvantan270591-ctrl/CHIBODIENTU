@@ -7,6 +7,7 @@ import pytz
 
 # --- CẤU HÌNH ---
 SHEET_ID = "1WKGPX3adetYHr7Z-yIegxADiRkrw8KWf5WZ6dQeIxPM"
+# Link ép kiểu lấy dữ liệu chuẩn CSV không qua cache
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&gid=0"
 LOG_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=NhatKyHop"
 SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsKDIo8o_rVt_dLGyq5puWNp1XaZLzeBxaesZyQLuMXbqqSkxG9lJXq8gOE4gGy2H-/exec"
@@ -14,130 +15,110 @@ ADMIN_NUM = "0927022753"
 
 st.set_page_config(page_title="HỆ THỐNG CHI BỘ", layout="centered", initial_sidebar_state="collapsed")
 
-# --- SIÊU CSS: GIAO DIỆN PREMIUM ---
+# --- CSS PREMIUM ---
 st.markdown("""
     <style>
-    /* Tổng thể */
-    .stApp { background: linear-gradient(180deg, #f0f2f5 0%, #ffffff 100%); }
-    
-    /* Header Header */
+    .stApp { background: #f8f9fa; }
     .main-header {
         background: linear-gradient(90deg, #d32f2f 0%, #b71c1c 100%);
-        padding: 30px; border-radius: 0 0 30px 30px;
+        padding: 40px 20px; border-radius: 0 0 30px 30px;
         color: white; text-align: center; margin: -60px -20px 30px -20px;
-        box-shadow: 0 4px 15px rgba(211, 47, 47, 0.3);
     }
-
-    /* Thẻ nội dung (Content Cards) */
     .custom-card {
-        background: white; padding: 20px; border-radius: 20px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.05); margin-bottom: 20px;
-        border: 1px solid rgba(0,0,0,0.02);
+        background: white; padding: 25px; border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08); margin-bottom: 20px;
     }
-    
-    .card-title {
-        font-size: 18px; font-weight: 700; color: #1a1a1a;
-        margin-bottom: 15px; display: flex; align-items: center; gap: 10px;
-    }
-
-    /* Grid thông tin hồ sơ */
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .info-item {
-        background: #f8f9fa; padding: 12px; border-radius: 12px;
-        border: 1px solid #eee;
-    }
-    .info-label { font-size: 11px; color: #718096; text-transform: uppercase; font-weight: 600; }
-    .info-value { font-size: 15px; color: #2d3748; font-weight: 700; }
-
-    /* Nút bấm Premium */
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .info-item { background: #f1f3f5; padding: 15px; border-radius: 12px; border: 1px solid #e9ecef; }
+    .info-label { font-size: 12px; color: #6c757d; font-weight: 600; margin-bottom: 5px; }
+    .info-value { font-size: 16px; color: #212529; font-weight: 700; }
     .stButton>button {
-        background: linear-gradient(90deg, #d32f2f 0%, #f44336 100%);
-        color: white; border: none; padding: 15px 25px;
-        border-radius: 15px; font-weight: 700; font-size: 16px;
-        width: 100%; transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(211, 47, 47, 0.2);
+        background: #d32f2f; color: white; border-radius: 15px; height: 3.8em;
+        font-weight: 700; width: 100%; border: none;
     }
-    .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(211, 47, 47, 0.4); }
-    
-    /* Sidebar tinh chỉnh */
-    [data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #eee; }
     </style>
     """, unsafe_allow_html=True)
 
 def clean_num(p):
+    """Hàm chuẩn hóa: Xóa sạch mọi thứ, chỉ giữ lại các chữ số"""
     if pd.isna(p): return ""
     s = ''.join(filter(str.isdigit, str(p)))
+    # Nếu số điện thoại có số 0 ở đầu, ta bỏ đi để so sánh cho dễ (tránh lỗi 09 vs 9)
     return s.lstrip('0')
 
-# --- LOGIC XÁC THỰC ---
+# --- LOGIC XỬ LÝ ---
 if 'auth' not in st.session_state:
     st.session_state.auth = False
     st.session_state.user = None
 
 if not st.session_state.auth:
-    st.markdown('<div class="main-header"><h1>🇻🇳 CHI BỘ ĐIỆN TỬ</h1><p>Vững bước dưới cờ Đảng</p></div>', unsafe_allow_html=True)
-    with st.container():
-        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        with st.form("login"):
-            sdt = st.text_input("📱 Số điện thoại Đảng viên:", placeholder="Nhập để tiếp tục...")
-            if st.form_submit_button("ĐĂNG NHẬP HỆ THỐNG"):
-                try:
-                    df = pd.read_csv(CSV_URL, dtype=str)
-                    target = clean_num(sdt)
-                    match_row = None
+    st.markdown('<div class="main-header"><h1>🇻🇳 CHI BỘ ĐIỆN TỬ</h1><p>Hệ thống quản lý Đảng viên 4.0</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+    with st.form("login"):
+        sdt_input = st.text_input("📱 Nhập số điện thoại đăng ký:", placeholder="Ví dụ: 0927...")
+        if st.form_submit_button("ĐĂNG NHẬP NGAY"):
+            try:
+                # Đọc dữ liệu và ÉP KIỂU STRING cho tất cả để không bị mất số 0
+                df = pd.read_csv(CSV_URL, dtype=str).fillna("")
+                target = clean_num(sdt_input)
+                
+                match_row = None
+                if target != "":
                     for _, row in df.iterrows():
-                        if any(target == clean_num(v) for v in row.values if target != ""):
-                            match_row = row.to_dict(); break
-                    if match_row:
-                        st.session_state.auth = True
-                        st.session_state.user = {"phone": sdt, "data": match_row}
-                        st.rerun()
-                    else: st.error("Tài khoản không tồn tại trên hệ thống.")
-                except: st.error("Lỗi kết nối máy chủ dữ liệu.")
-        st.markdown('</div>', unsafe_allow_html=True)
+                        # Kiểm tra từng ô trong hàng, nếu có ô nào chứa số điện thoại khớp đuôi
+                        if any(target == clean_num(val) for val in row.values):
+                            match_row = row.to_dict()
+                            break
+                
+                if match_row:
+                    st.session_state.auth = True
+                    st.session_state.user = {"phone": sdt_input, "data": match_row}
+                    st.rerun()
+                else:
+                    st.error("❌ Không tìm thấy thông tin đồng chí. Vui lòng kiểm tra lại số điện thoại trong file Sheets.")
+            except Exception as e:
+                st.error(f"⚠️ Lỗi kết nối: {e}")
+    st.markdown('</div>', unsafe_allow_html=True)
 else:
     u = st.session_state.user
     is_admin = clean_num(u['phone']) == clean_num(ADMIN_NUM)
-    ten_dc = next((str(v) for v in u['data'].values() if v and not str(v).isdigit() and len(str(v)) > 3), "Đồng chí")
+    # Tìm tên trong dữ liệu hàng
+    ten_dc = "Đồng chí"
+    for v in u['data'].values():
+        if v and not str(v).isdigit() and len(str(v)) > 2:
+            ten_dc = str(v)
+            break
 
-    # Header chào mừng
-    st.markdown(f'<div class="main-header"><h3>Chào Đ/c {ten_dc}</h3><p>Hôm nay là {datetime.now().strftime("%d/%m/%Y")}</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="main-header"><h3>Chào Đ/c {ten_dc}</h3><p>Chi bộ chúc đồng chí một ngày làm việc hiệu quả</p></div>', unsafe_allow_html=True)
 
-    # Sidebar
     with st.sidebar:
-        st.title("⚡ TIỆN ÍCH")
+        st.title("DANH MỤC")
         menu = st.radio("Chức năng:", ["🏠 Dashboard", "📊 Quản trị"] if is_admin else ["🏠 Dashboard"])
-        if st.button("🚪 Đăng xuất"):
-            st.session_state.auth = False; st.rerun()
+        if st.button("🚪 Thoát hệ thống"):
+            st.session_state.auth = False
+            st.rerun()
 
     if "Dashboard" in menu:
-        # 1. KHỐI ĐIỂM DANH (Ưu tiên số 1)
+        # THÀNH PHẦN 1: ĐIỂM DANH
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">📍 ĐIỂM DANH SINH HOẠT</div>', unsafe_allow_html=True)
-        if st.button("BẤM ĐỂ XÁC NHẬN CÓ MẶT"):
+        st.markdown('<h4 style="color:#d32f2f; margin-top:0;">📍 ĐIỂM DANH DỰ HỌP</h4>', unsafe_allow_html=True)
+        if st.button("XÁC NHẬN CÓ MẶT"):
             tz = pytz.timezone('Asia/Ho_Chi_Minh')
             gio = datetime.now(tz).strftime("%H:%M:%S %d/%m/%Y")
             payload = {"sheetName": "NhatKyHop", "values": [gio, u['phone'], ten_dc, "Có mặt"]}
             try:
                 requests.post(SCRIPT_URL, data=json.dumps(payload))
-                st.success(f"Ghi nhận lúc: {gio}"); st.balloons()
-            except: st.error("Lỗi đồng bộ.")
+                st.success(f"Đã ghi nhận điểm danh lúc {gio}")
+                st.balloons()
+            except: st.error("Lỗi gửi dữ liệu.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # 2. KHỐI TÀI LIỆU (Dạng danh sách đẹp)
+        # THÀNH PHẦN 2: HỒ SƠ
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">📖 TÀI LIỆU NỘI BỘ</div>', unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        col1.markdown("📄 **Nghị quyết tháng**")
-        col2.markdown("📄 **Báo cáo chuyên đề**")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # 3. KHỐI HỒ SƠ (Dạng Grid chuyên nghiệp)
-        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">👤 HỒ SƠ ĐẢNG VIÊN</div>', unsafe_allow_html=True)
+        st.markdown('<h4 style="color:#212529; margin-top:0;">👤 THÔNG TIN CHI TIẾT</h4>', unsafe_allow_html=True)
         st.markdown('<div class="info-grid">', unsafe_allow_html=True)
         for k, v in u['data'].items():
-            if pd.notna(v) and "Unnamed" not in str(k):
+            if v and "Unnamed" not in str(k):
                 st.markdown(f'''
                     <div class="info-item">
                         <div class="info-label">{k}</div>
@@ -148,12 +129,10 @@ else:
 
     elif "Quản trị" in menu:
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">🖥️ TRUNG TÂM ĐIỀU HÀNH</div>', unsafe_allow_html=True)
+        st.subheader("🖥️ Báo cáo Chi bộ")
         try:
             df_log = pd.read_csv(LOG_URL)
-            c1, c2 = st.columns(2)
-            c1.metric("Lượt điểm danh", len(df_log))
-            c2.metric("Trạng thái", "Ổn định")
-            st.dataframe(df_log.tail(10), use_container_width=True)
-        except: st.info("Hệ thống đang sẵn sàng.")
+            st.metric("Tổng lượt điểm danh", len(df_log))
+            st.dataframe(df_log.tail(15), use_container_width=True)
+        except: st.info("Đang cập nhật nhật ký...")
         st.markdown('</div>', unsafe_allow_html=True)
