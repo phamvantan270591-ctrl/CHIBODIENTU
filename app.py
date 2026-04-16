@@ -26,14 +26,16 @@ def send_to_sheets(sheet_name, row_data):
     except:
         return False
 
-# --- GIAO DIỆN ĐĂNG NHẬP ---
+# --- MÀN HÌNH ĐĂNG NHẬP ---
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 
 if not st.session_state['authenticated']:
-    st.markdown("<h1 style='text-align: center; color: #cc0000;'> CHI BỘ ĐIỆN TỬ</h1>", unsafe_allow_code=True)
-    st.subheader("🔑 Xác thực Đảng viên")
-    sdt_nhap = st.text_input("Nhập số điện thoại của đồng chí:", placeholder="Ví dụ: 0912345678")
+    st.title("🏛️ CHI BỘ ĐIỆN TỬ")
+    st.subheader("Xác thực Đảng viên")
+    st.write("Vui lòng nhập số điện thoại để vào hệ thống")
+    
+    sdt_nhap = st.text_input("Số điện thoại:", placeholder="Ví dụ: 0912345678")
     
     if st.button("VÀO HỆ THỐNG", use_container_width=True):
         try:
