@@ -31,7 +31,7 @@ if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 
 if not st.session_state['authenticated']:
-    st.markdown("<h1 style='text-align: center; color: #cc0000;'>🏛️ CHI BỘ ĐIỆN TỬ</h1>", unsafe_allow_code=True)
+    st.markdown("<h1 style='text-align: center; color: #cc0000;'> CHI BỘ ĐIỆN TỬ</h1>", unsafe_allow_code=True)
     st.subheader("🔑 Xác thực Đảng viên")
     sdt_nhap = st.text_input("Nhập số điện thoại của đồng chí:", placeholder="Ví dụ: 0912345678")
     
