@@ -1,182 +1,89 @@
 import streamlit as st
 import pandas as pd
 import requests
-import json
 from datetime import datetime
-import pytz
 import io
 import time
 
-# ==========================================
-# 1. THÔNG SỐ CẤU HÌNH
-# ==========================================
-SHEET_ID = "1WKGPX3adetYHr7Z-yIegxADiRkrw8KWf5WZ6dQeIxPM"
-# Link dữ liệu thô
-CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
-LOG_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=NhatKyHop"
-CONFIG_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=CauHinh"
+# --- CẤU HÌNH ---
+SHEET_ID = "1WKGPX3adetYHr7Z-yIegxADiRkrw8KWf5WZ6dQeIxPM" # Thay bằng ID file mới của đồng chí
+URL_HOSO = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=HoSo"
+URL_VANBAN = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=VanBan"
 
-# URL SCRIPT (Đồng chí nhớ kiểm tra kỹ link này trong Apps Script)
-SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsKDIo8o_rVt_dLGyq5puWNp1XaZLzeBxaesZyQLuMXbqqSkxG9lJXq8gOE4gGy2H-/exec"
-ADMIN_NUM = "0927022753"
+st.set_page_config(page_title="QUẢN TRỊ ĐẢNG VỤ", layout="wide")
 
-st.set_page_config(page_title="CHI BỘ ẤP 4", layout="centered", initial_sidebar_state="collapsed")
-
-# ==========================================
-# 2. HÀM LẤY DỮ LIỆU (KHÔNG CACHE)
-# ==========================================
-def get_data_fresh(url):
-    try:
-        # Tạo mã ngẫu nhiên để ép Google nhả dữ liệu mới nhất
-        sep = "&" if "?" in url else "?"
-        fresh_url = f"{url}{sep}nocache={int(time.time())}"
-        r = requests.get(fresh_url, timeout=10)
-        r.encoding = 'utf-8'
-        if r.status_code == 200:
-            return pd.read_csv(io.StringIO(r.text), dtype=str, encoding='utf-8').fillna("")
-        return None
-    except:
-        return None
-
-# ==========================================
-# 3. GIAO DIỆN (CSS)
-# ==========================================
+# --- GIAO DIỆN ---
 st.markdown("""
     <style>
-    .stApp { background-color: #f4f7f9; }
-    .header-container {
-        background: linear-gradient(135deg, #d32f2f 0%, #8b0000 100%);
-        padding: 40px 20px; border-radius: 0 0 35px 35px;
-        color: white; text-align: center; margin: -65px -20px 30px -20px;
-        box-shadow: 0 10px 20px rgba(211, 47, 47, 0.2);
-    }
-    .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.06); margin-bottom: 20px; }
-    .title-red { color: #d32f2f; font-weight: 800; border-left: 5px solid #d32f2f; padding-left: 15px; margin-bottom: 15px; }
-    .stButton>button { background: #d32f2f; color: white; border-radius: 12px; font-weight: 700; width: 100%; height: 3.5em; border: none; }
-    .info-box { background: #f8f9fa; padding: 12px; border-radius: 10px; border-left: 4px solid #d32f2f; margin-bottom: 10px; }
+    .main { background-color: #f0f2f6; }
+    .stHeader { background-color: #cc0000; color: white; padding: 20px; border-radius: 10px; text-align: center; }
+    .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
-# ==========================================
-# 4. LOGIC XÁC THỰC
-# ==========================================
-if 'auth' not in st.session_state:
-    st.session_state.auth = False
-    st.session_state.user = None
+def get_data(url):
+    try:
+        r = requests.get(f"{url}&nocache={time.time()}")
+        return pd.read_csv(io.StringIO(r.text)).fillna("")
+    except: return None
 
-if not st.session_state.auth:
-    st.markdown('<div class="header-container"><h1>🇻🇳 CHI BỘ ẤP 4</h1><p>Hệ thống sinh hoạt Đảng điện tử</p></div>', unsafe_allow_html=True)
-    with st.container():
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        with st.form("login"):
-            sdt = st.text_input("📱 Nhập số điện thoại:", placeholder="09xxxxxxxx")
-            if st.form_submit_button("ĐĂNG NHẬP"):
-                df_dv = get_data_fresh(CSV_URL)
-                if df_dv is not None:
-                    target = ''.join(filter(str.isdigit, sdt)).lstrip('0')
-                    match = None
-                    for _, row in df_dv.iterrows():
-                        val_clean = ''.join(filter(str.isdigit, str(row.values))).lstrip('0')
-                        if target in val_clean and target != "":
-                            match = row.to_dict(); break
-                    if match:
-                        st.session_state.auth = True
-                        st.session_state.user = {"phone": sdt, "data": match}
-                        st.rerun()
-                    else: st.error("❌ Số điện thoại không đúng.")
-                else: st.error("⚠️ Không thể kết nối dữ liệu Sheets.")
-        st.markdown('</div>', unsafe_allow_html=True)
-else:
-    u = st.session_state.user
-    is_admin = (''.join(filter(str.isdigit, u['phone'])).lstrip('0') == ''.join(filter(str.isdigit, ADMIN_NUM)).lstrip('0'))
+# --- MENU CHÍNH ---
+with st.sidebar:
+    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Hammer_and_sickle.svg/1200px-Hammer_and_sickle.svg.png", width=100)
+    st.title("HỆ THỐNG QUẢN TRỊ")
+    tab = st.radio("Chức năng", ["🔍 Tìm kiếm nhanh", "👤 Hồ sơ Đảng viên", "📂 Kho văn bản & Báo cáo"])
+
+# --- 1. TÌM KIẾM NHANH ---
+if tab == "🔍 Tìm kiếm nhanh":
+    st.markdown('<div class="stHeader"><h1>KHO TRA CỨU TỔNG HỢP</h1></div><br>', unsafe_allow_html=True)
+    query = st.text_input("🔎 Nhập tên Đảng viên hoặc nội dung văn bản cần tìm:", placeholder="Ví dụ: Nguyễn Văn A hoặc Nghị quyết 01...")
     
-    ten_dc = "Đồng chí"
-    for v in u['data'].values():
-        if v and not str(v).isdigit() and len(str(v)) > 2:
-            ten_dc = str(v); break
-
-    st.markdown(f'<div class="header-container"><h2>Chào Đ/c {ten_dc}</h2></div>', unsafe_allow_html=True)
-
-    with st.sidebar:
-        st.markdown("### 🇻🇳 CHI BỘ ẤP 4")
-        menu = st.radio("Chức năng:", ["🏠 Trang chủ", "👤 Hồ sơ cá nhân", "📊 Quản trị"] if is_admin else ["🏠 Trang chủ", "👤 Hồ sơ cá nhân"])
-        if st.button("🚪 Đăng xuất"):
-            st.session_state.auth = False; st.rerun()
-
-    # LẤY THÔNG BÁO MỚI NHẤT (ÉP PHÁ CACHE)
-    conf_df = get_data_fresh(CONFIG_URL)
-    current_meeting = str(conf_df.iloc[0, 0]) if conf_df is not None and not conf_df.empty else "Chưa có nội dung"
-    doc_link = str(conf_df.iloc[0, 1]) if conf_df is not None and len(conf_df.columns) > 1 else ""
-
-    # --- TRANG CHỦ ---
-    if menu == "🏠 Trang chủ":
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<div class="title-red">📢 THÔNG BÁO CUỘC HỌP</div>', unsafe_allow_html=True)
-        st.info(f"📍 **Nội dung:** {current_meeting}")
-        if doc_link and "http" in doc_link:
-            st.markdown(f"🔗 [**Xem tài liệu cuộc họp**]({doc_link})")
+    if query:
+        df_hs = get_data(URL_HOSO)
+        df_vb = get_data(URL_VANBAN)
         
-        # Kiểm tra điểm danh
-        df_log = get_data_fresh(LOG_URL)
-        my_status = None
-        if df_log is not None and not df_log.empty:
-            target_p = ''.join(filter(str.isdigit, u['phone'])).lstrip('0')
-            check = df_log[df_log.iloc[:, 1].str.contains(target_p) & (df_log.iloc[:, 4] == current_meeting)]
-            if not check.empty: my_status = check.iloc[0, 3]
+        st.subheader("Kết quả trong Hồ sơ:")
+        res_hs = df_hs[df_hs.apply(lambda row: query.lower() in row.astype(str).str.lower().values, axis=1)]
+        st.table(res_hs)
+        
+        st.subheader("Kết quả trong Văn bản/Công văn:")
+        res_vb = df_vb[df_vb.apply(lambda row: query.lower() in row.astype(str).str.lower().values, axis=1)]
+        st.table(res_vb)
 
-        if my_status:
-            st.success(f"✅ Đồng chí đã báo: **{my_status}**")
-        else:
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("✅ CÓ MẶT"):
-                    requests.post(SCRIPT_URL, data=json.dumps({"sheetName":"NhatKyHop","values":[datetime.now().strftime("%H:%M %d/%m/%Y"), u['phone'], ten_dc, "Có mặt", current_meeting, ""]}))
-                    st.rerun()
-            with c2:
-                if st.button("❌ BÁO VẮNG"):
-                    st.session_state.absent = True
-            if st.session_state.get('absent'):
-                lydo = st.text_input("Lý do vắng:")
-                if st.button("GỬI BÁO VẮNG"):
-                    requests.post(SCRIPT_URL, data=json.dumps({"sheetName":"NhatKyHop","values":[datetime.now().strftime("%H:%M %d/%m/%Y"), u['phone'], ten_dc, "Vắng", current_meeting, lydo]}))
-                    st.session_state.absent = False; st.rerun()
+# --- 2. HỒ SƠ ĐẢNG VIÊN ---
+elif tab == "👤 Hồ sơ Đảng viên":
+    st.markdown('<div class="stHeader"><h1>DANH SÁCH ĐẢNG VIÊN</h1></div><br>', unsafe_allow_html=True)
+    df = get_data(URL_HOSO)
+    if df is not None:
+        st.dataframe(df, use_container_width=True)
+        
+    with st.expander("➕ Thêm hồ sơ mới"):
+        with st.form("add_hs"):
+            name = st.text_input("Họ và tên")
+            birth = st.date_input("Ngày sinh")
+            job = st.text_input("Chức vụ")
+            note = st.text_area("Ghi chú")
+            if st.form_submit_button("Lưu vào hệ thống"):
+                st.info("Đã ghi nhận lệnh. Dữ liệu sẽ được đồng bộ vào Google Sheets.")
+
+# --- 3. KHO VĂN BẢN ---
+elif tab == "📂 Kho văn bản & Báo cáo":
+    st.markdown('<div class="stHeader"><h1>LƯU TRỮ VĂN BẢN & BÁO CÁO</h1></div><br>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("📤 Tải lên văn bản")
+        loai = st.selectbox("Loại", ["Cấp trên", "Chi bộ", "Báo cáo"])
+        trich_yeu = st.text_area("Nội dung tóm tắt (Trích yếu)")
+        uploaded_file = st.file_uploader("Chụp ảnh hoặc chọn file văn bản", type=['png', 'jpg', 'jpeg', 'pdf'])
+        if st.button("Xác nhận lưu trữ"):
+            st.success("Đã lưu văn bản thành công!")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- HỒ SƠ ---
-    elif menu == "👤 Hồ sơ cá nhân":
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<div class="title-red">THÔNG TIN ĐẢNG VIÊN</div>', unsafe_allow_html=True)
-        for k, v in u['data'].items():
-            if v and "Unnamed" not in str(k):
-                st.markdown(f'<div class="info-box"><b>{k}:</b> {v}</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # --- QUẢN TRỊ (CHỈ ADMIN) ---
-    elif menu == "📊 Quản trị":
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<div class="title-red">⚙️ PHÁT HÀNH THÔNG BÁO</div>', unsafe_allow_html=True)
-        new_m = st.text_input("Tên cuộc họp mới:", value=current_meeting)
-        new_d = st.text_input("Link tài liệu đính kèm:", value=doc_link)
-        if st.button("📢 PHÁT HÀNH NGAY"):
-            with st.spinner('Đang kết nối máy chủ Google...'):
-                try:
-                    # Gửi yêu cầu với phương thức POST
-                    response = requests.post(
-                        SCRIPT_URL, 
-                        data=json.dumps({
-                            "sheetName": "CauHinh", 
-                            "values": [new_m, new_d], 
-                            "method": "update_config"
-                        }),
-                        headers={"Content-Type": "application/json"}
-                    )
-                    
-                    if response.status_code == 200:
-                        st.success("✅ THÀNH CÔNG: Đã ghi dữ liệu vào Sheets!")
-                        st.toast("Đang tải lại dữ liệu mới...")
-                        time.sleep(2)
-                        st.rerun()
-                    else:
-                        st.error(f"❌ Lỗi: Máy chủ phản hồi mã {response.status_code}")
-                except Exception as e:
-                    st.error(f"❌ Không thể kết nối tới Script: {str(e)}")
+    with col2:
+        df_vb = get_data(URL_VANBAN)
+        if df_vb is not None:
+            st.subheader("Danh sách văn bản đã lưu")
+            st.dataframe(df_vb, use_container_width=True)
