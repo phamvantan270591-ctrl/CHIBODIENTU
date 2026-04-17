@@ -90,11 +90,44 @@ elif menu == "Lưu văn bản":
 elif menu == "Xem lại ảnh":
     st.header("🖼 KHO VĂN BẢN ẢNH")
     df_v = load_data("VanBan")
-    if not df_v.empty:
-        list_vb = df_v.iloc[:, 2].tolist()
-        chon = st.selectbox("Chọn văn bản", ["-- Chọn --"] + list_vb)
-        if chon != "-- Chọn --":
-            dong = df_v[df_v.iloc[:, 2] == chon].iloc[0]
+    
+    if df_v.empty:
+        st.info("Chưa có văn bản nào được lưu.")
+    else:
+        # 1. Ô tìm kiếm nhanh
+        search = st.text_input("🔎 Tìm kiếm văn bản theo trích yếu:", "")
+        
+        # Lọc dữ liệu theo tìm kiếm
+        if search:
+            df_display = df_v[df_v.iloc[:, 2].str.contains(search, case=False)]
+        else:
+            df_display = df_v
+            
+        st.write(f"Tìm thấy {len(df_display)} văn bản.")
+        st.write("---")
+
+        # 2. Hiển thị dạng danh sách chuyên nghiệp
+        for index, row in df_display.iterrows():
+            with st.container():
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.markdown(f"**📄 {row.iloc[2]}**")
+                    st.caption(f"📅 Ngày lưu: {row.iloc[0]}")
+                with col2:
+                    # Dùng key duy nhất cho mỗi nút bấm
+                    if st.button("👁️ Xem ảnh", key=f"btn_{index}"):
+                        st.session_state.current_img = row.iloc[3]
+                        st.session_state.current_title = row.iloc[2]
+                st.write("---")
+
+        # 3. Hiển thị ảnh khi bấm nút (Cửa sổ hiển thị)
+        if 'current_img' in st.session_state:
+            st.markdown(f"### 🖼 Đang xem: {st.session_state.current_title}")
             try:
-                st.image(base64.b64decode(dong.iloc[3]), caption=chon)
-            except: st.error("Lỗi hiển thị ảnh!")
+                img_data = base64.b64decode(st.session_state.current_img)
+                st.image(img_data, use_container_width=True)
+                if st.button("❌ Đóng ảnh"):
+                    del st.session_state.current_img
+                    st.rerun()
+            except:
+                st.error("Lỗi dữ liệu ảnh!")
