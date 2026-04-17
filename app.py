@@ -158,10 +158,25 @@ else:
         new_m = st.text_input("Tên cuộc họp mới:", value=current_meeting)
         new_d = st.text_input("Link tài liệu đính kèm:", value=doc_link)
         if st.button("📢 PHÁT HÀNH NGAY"):
-            with st.spinner('Đang truyền lệnh tới Google Sheets...'):
-                res = requests.post(SCRIPT_URL, data=json.dumps({"sheetName": "CauHinh", "values": [new_m, new_d], "method": "update_config"}))
-                if res.status_code == 200:
-                    st.success("✅ ĐÃ CẬP NHẬT! Đảng viên sẽ thấy thông báo mới sau vài giây.")
-                    time.sleep(2); st.rerun()
-                else: st.error("Lỗi Script. Vui lòng kiểm tra lại SCRIPT_URL.")
-        st.markdown('</div>', unsafe_allow_html=True)
+            with st.spinner('Đang kết nối máy chủ Google...'):
+                try:
+                    # Gửi yêu cầu với phương thức POST
+                    response = requests.post(
+                        SCRIPT_URL, 
+                        data=json.dumps({
+                            "sheetName": "CauHinh", 
+                            "values": [new_m, new_d], 
+                            "method": "update_config"
+                        }),
+                        headers={"Content-Type": "application/json"}
+                    )
+                    
+                    if response.status_code == 200:
+                        st.success("✅ THÀNH CÔNG: Đã ghi dữ liệu vào Sheets!")
+                        st.toast("Đang tải lại dữ liệu mới...")
+                        time.sleep(2)
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Lỗi: Máy chủ phản hồi mã {response.status_code}")
+                except Exception as e:
+                    st.error(f"❌ Không thể kết nối tới Script: {str(e)}")
