@@ -18,7 +18,7 @@ ADMIN_NUM = "0927022753"
 
 st.set_page_config(page_title="CHI BỘ ẤP 4", layout="centered", initial_sidebar_state="collapsed")
 
-# --- CSS GIAO DIỆN HIỆN ĐẠI ---
+# --- CSS GIAO DIỆN PREMIUM ---
 st.markdown("""
     <style>
     .stApp { background-color: #f4f7f9; }
@@ -28,6 +28,7 @@ st.markdown("""
         color: white; text-align: center; margin: -65px -20px 30px -20px;
         box-shadow: 0 10px 20px rgba(211, 47, 47, 0.2);
     }
+    .flag-icon { font-size: 50px; margin-bottom: 10px; display: block; }
     .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.06); margin-bottom: 20px; }
     .title-red { color: #d32f2f; font-weight: 800; border-left: 5px solid #d32f2f; padding-left: 15px; margin-bottom: 15px; }
     .stButton>button { background: #d32f2f; color: white; border-radius: 12px; font-weight: 700; width: 100%; border: none; height: 3.5em; }
@@ -41,26 +42,28 @@ def clean_num(p):
     return ''.join(filter(str.isdigit, str(p))).lstrip('0')
 
 def get_data_utf8(url):
+    """Hàm tải dữ liệu với cơ chế phá cache và ép kiểu UTF-8"""
     try:
-        r = requests.get(f"{url}&t={int(time.time())}", timeout=10)
+        # Thêm tham số thời gian để ép Google Sheets trả về bản mới nhất
+        fresh_url = f"{url}&cache_bus={int(time.time())}"
+        r = requests.get(fresh_url, timeout=10)
         r.encoding = 'utf-8'
         if r.status_code == 200:
             return pd.read_csv(io.StringIO(r.text), dtype=str, encoding='utf-8').fillna("")
         return None
     except: return None
 
-# --- KHỞI TẠO ---
+# --- LOGIC XÁC THỰC ---
 if 'auth' not in st.session_state:
     st.session_state.auth = False
     st.session_state.user = None
 
-# --- TRANG ĐĂNG NHẬP ---
 if not st.session_state.auth:
-    st.markdown('<div class="header-container"><h1>🇻🇳 CHI BỘ ẤP 4</h1><p>Hệ thống quản lý Đảng viên số</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="header-container"><span class="flag-icon">🇻🇳</span><h1>CHI BỘ ẤP 4</h1><p>Hệ thống sinh hoạt Đảng điện tử</p></div>', unsafe_allow_html=True)
     with st.container():
         st.markdown('<div class="card">', unsafe_allow_html=True)
         with st.form("login"):
-            sdt = st.text_input("📱 Nhập số điện thoại:", placeholder="09xxxxxxxx")
+            sdt = st.text_input("📱 Nhập số điện thoại Đảng viên:", placeholder="09xxxxxxxx")
             if st.form_submit_button("ĐĂNG NHẬP"):
                 df_dv = get_data_utf8(CSV_URL)
                 if df_dv is not None:
@@ -74,7 +77,7 @@ if not st.session_state.auth:
                         st.session_state.user = {"phone": sdt, "data": match}
                         st.rerun()
                     else: st.error("❌ Số điện thoại không đúng.")
-                else: st.error("⚠️ Lỗi kết nối dữ liệu.")
+                else: st.error("⚠️ Lỗi kết nối máy chủ dữ liệu.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 else:
@@ -92,22 +95,26 @@ else:
         if st.button("🚪 Đăng xuất"):
             st.session_state.auth = False; st.rerun()
 
-    # Lấy cấu hình cuộc họp (đã xử lý tiếng Việt)
+    # --- LẤY CẤU HÌNH MỚI NHẤT (PHÁ CACHE) ---
     conf_df = get_data_utf8(CONFIG_URL)
-    current_meeting = conf_df.iloc[0, 0] if conf_df is not None and not conf_df.empty else ""
-    doc_link = conf_df.iloc[0, 1] if conf_df is not None and len(conf_df.columns) > 1 else ""
+    if conf_df is not None and not conf_df.empty:
+        current_meeting = str(conf_df.iloc[0, 0])
+        doc_link = str(conf_df.iloc[0, 1]) if len(conf_df.columns) > 1 else ""
+    else:
+        current_meeting = ""
+        doc_link = ""
 
-    # --- 🏠 TRANG CHỦ: ĐIỂM DANH & BÁO VẮNG ---
+    # --- 🏠 TRANG CHỦ ---
     if menu == "🏠 Trang chủ":
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<div class="title-red">📍 THÔNG TIN CUỘC HỌP</div>', unsafe_allow_html=True)
+        st.markdown('<div class="title-red">📢 THÔNG BÁO CUỘC HỌP</div>', unsafe_allow_html=True)
         
         if current_meeting:
-            st.info(f"**Nội dung:** {current_meeting}")
-            if doc_link:
-                st.markdown(f"🔗 [**Tài liệu kèm theo**]({doc_link})")
+            st.info(f"📍 **Nội dung:** {current_meeting}")
+            if doc_link and doc_link.strip():
+                st.markdown(f"🔗 [**Tài liệu kèm theo cuộc họp**]({doc_link})")
             
-            # Kiểm tra xem đã điểm danh chưa
+            # Kiểm tra trạng thái điểm danh
             df_log = get_data_utf8(LOG_URL)
             my_status = None
             if df_log is not None and not df_log.empty:
@@ -116,30 +123,30 @@ else:
                     my_status = check.iloc[0, 3]
 
             if my_status:
-                st.success(f"✅ Đồng chí đã báo: **{my_status}**")
+                st.success(f"✅ Đồng chí đã báo: **{my_status.upper()}**")
             else:
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("✅ CÓ MẶT"):
                         payload = {"sheetName": "NhatKyHop", "values": [datetime.now().strftime("%H:%M %d/%m/%Y"), u['phone'], ten_dc, "Có mặt", current_meeting, ""]}
                         requests.post(SCRIPT_URL, data=json.dumps(payload))
-                        st.success("Đã điểm danh!"); time.sleep(1); st.rerun()
+                        st.success("Đã điểm danh!"); time.sleep(1.5); st.rerun()
                 with col2:
                     if st.button("❌ BÁO VẮNG"):
                         st.session_state.absent_mode = True
                 
                 if st.session_state.get('absent_mode'):
-                    reason = st.text_input("Lý do vắng mặt:", placeholder="Nhập lý do...")
+                    reason = st.text_input("Lý do vắng mặt:", placeholder="Nhập lý do vắng...")
                     if st.button("XÁC NHẬN VẮNG"):
                         payload = {"sheetName": "NhatKyHop", "values": [datetime.now().strftime("%H:%M %d/%m/%Y"), u['phone'], ten_dc, "Vắng", current_meeting, reason]}
                         requests.post(SCRIPT_URL, data=json.dumps(payload))
                         st.session_state.absent_mode = False
-                        st.success("Đã gửi báo vắng!"); time.sleep(1); st.rerun()
+                        st.success("Đã gửi báo vắng!"); time.sleep(1.5); st.rerun()
         else:
-            st.write("Hiện chưa có thông báo họp mới.")
+            st.write("Hiện chưa có thông báo cuộc họp mới từ Quản trị viên.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- 👤 HỒ SƠ ---
+    # --- 👤 HỒ SƠ CÁ NHÂN ---
     elif menu == "👤 Hồ sơ cá nhân":
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.markdown('<div class="title-red">THÔNG TIN ĐẢNG VIÊN</div>', unsafe_allow_html=True)
@@ -150,19 +157,22 @@ else:
 
     # --- 📊 QUẢN TRỊ ---
     elif menu == "📊 Quản trị":
-        # Tạo họp mới
+        # 1. Cập nhật họp mới
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<div class="title-red">⚙️ QUẢN LÝ CUỘC HỌP</div>', unsafe_allow_html=True)
-        m_name = st.text_input("Tên cuộc họp:", value=current_meeting)
-        m_doc = st.text_input("Link tài liệu:", value=doc_link)
-        if st.button("📢 CẬP NHẬT THÔNG BÁO"):
-            requests.post(SCRIPT_URL, data=json.dumps({"sheetName": "CauHinh", "values": [m_name, m_doc], "method": "update_config"}))
-            st.success("Đã cập nhật!"); time.sleep(1); st.rerun()
+        st.markdown('<div class="title-red">⚙️ ĐIỀU HÀNH CUỘC HỌP</div>', unsafe_allow_html=True)
+        m_name = st.text_input("Tên cuộc họp mới:", value=current_meeting)
+        m_doc = st.text_input("Link tài liệu đính kèm:", value=doc_link)
+        if st.button("📢 PHÁT HÀNH THÔNG BÁO"):
+            if m_name:
+                requests.post(SCRIPT_URL, data=json.dumps({"sheetName": "CauHinh", "values": [m_name, m_doc], "method": "update_config"}))
+                st.success("Đã phát hành thông báo mới!"); time.sleep(2); st.rerun()
+            else:
+                st.warning("Vui lòng nhập tên cuộc họp.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Thống kê
+        # 2. Thống kê nhanh
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<div class="title-red">📊 THỐNG KÊ ĐIỂM DANH</div>', unsafe_allow_html=True)
+        st.markdown('<div class="title-red">📊 THỐNG KÊ CHI TIẾT</div>', unsafe_allow_html=True)
         df_dv = get_data_utf8(CSV_URL)
         df_log = get_data_utf8(LOG_URL)
         if df_dv is not None and df_log is not None:
@@ -174,6 +184,9 @@ else:
             c1, c2, c3 = st.columns(3)
             c1.markdown(f'<div class="stat-card" style="background:#2e7d32">CÓ MẶT<br><h3>{attended}</h3></div>', unsafe_allow_html=True)
             c2.markdown(f'<div class="stat-card" style="background:#d32f2f">VẮNG<br><h3>{absent}</h3></div>', unsafe_allow_html=True)
-            c3.markdown(f'<div class="stat-card" style="background:#f9a825">CHƯA BÁO<br><h3>{total-attended-absent}</h3></div>', unsafe_allow_html=True)
+            c3.markdown(f'<div class="stat-card" style="background:#f9a825">CHƯA BÁO<br><h3>{max(0, total-attended-absent)}</h3></div>', unsafe_allow_html=True)
+            
+            st.write("---")
+            st.write("**Danh sách phản hồi:**")
             st.dataframe(resp_df.iloc[:, [0, 2, 3, 5]], use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
