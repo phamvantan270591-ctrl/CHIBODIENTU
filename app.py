@@ -14,7 +14,7 @@ SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwd_94ZlYdo3qJ_qS-Ou8OJLPR
 
 st.set_page_config(page_title="QUẢN TRỊ ĐẢNG VỤ", layout="wide")
 
-# Hàm hỗ trợ
+# Hàm lưu dữ liệu
 def save_data(sheet_name, values):
     try:
         payload = {"method": "append_row", "sheetName": sheet_name, "values": values}
@@ -22,6 +22,7 @@ def save_data(sheet_name, values):
         return res.status_code == 200
     except: return False
 
+# Hàm tải dữ liệu (Tự động làm mới)
 def load_data(sheet_name):
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name}&t={int(time.time())}"
     try:
@@ -43,10 +44,10 @@ if not st.session_state.auth:
         else: st.error("Sai tài khoản!")
     st.stop()
 
-# MENU
+# MENU CHÍNH
 menu = st.sidebar.radio("CHỨC NĂNG", ["👤 Hồ sơ Đảng viên", "📤 Lưu văn bản", "🖼 Kho văn bản ảnh"])
 
-# --- PHẦN 1: HỒ SƠ ĐẢNG VIÊN ---
+# --- 1. HỒ SƠ ĐẢNG VIÊN ---
 if menu == "👤 Hồ sơ Đảng viên":
     st.header("👤 QUẢN LÝ HỒ SƠ")
     with st.form("f1", clear_on_submit=True):
@@ -58,41 +59,37 @@ if menu == "👤 Hồ sơ Đảng viên":
                 if save_data("HoSo", [datetime.now().strftime("%d/%m/%Y %H:%M"), ten, chucvu, ghichu]):
                     st.success("Đã lưu!"); time.sleep(1); st.rerun()
             else: st.warning("Nhập tên!")
-    df_hs = load_data("HoSo")
-    if not df_hs.empty: st.dataframe(df_hs, use_container_width=True)
+    st.subheader("📋 Danh sách")
+    st.dataframe(load_data("HoSo"), use_container_width=True)
 
-# --- PHẦN 2: LƯU VĂN BẢN (PHÂN LOẠI MỚI) ---
+# --- 2. LƯU VĂN BẢN (PHÂN LOẠI) ---
 elif menu == "📤 Lưu văn bản":
     st.header("📤 LƯU VĂN BẢN THEO MỤC")
     with st.form("f2", clear_on_submit=True):
-        # Chọn mục lớn
-        muc_lon = st.selectbox("Chọn mục chính:", ["Văn bản cấp trên", "Văn bản Chi bộ", "Ảnh khác"])
-        
-        # Nếu là văn bản cấp trên thì hiện thêm mục con
-        loai_chi_tiet = ""
+        muc_lon = st.selectbox("Mục chính:", ["Văn bản cấp trên", "Văn bản Chi bộ", "Ảnh khác"])
+        loai_phu = ""
         if muc_lon == "Văn bản cấp trên":
-            loai_chi_tiet = st.selectbox("Loại văn bản:", ["Quyết định", "Công văn", "Kế hoạch"])
+            loai_phu = st.selectbox("Loại văn bản:", ["Quyết định", "Công văn", "Kế hoạch"])
         else:
-            loai_chi_tiet = muc_lon
+            loai_phu = muc_lon
             
         trich_yeu = st.text_input("Trích yếu nội dung:")
         anh = st.file_uploader("Chọn ảnh:", type=['jpg','png','jpeg'])
         
         if st.form_submit_button("💾 XÁC NHẬN LƯU"):
             if trich_yeu and anh:
-                with st.spinner("Đang xử lý..."):
+                with st.spinner("Đang nén ảnh..."):
                     img = Image.open(anh).convert("RGB")
                     img.thumbnail((800, 800))
                     buf = io.BytesIO()
                     img.save(buf, format="JPEG", quality=50)
                     txt_anh = base64.b64encode(buf.getvalue()).decode()
-                    # Lưu vào Sheets: [Ngày, Mục lớn, Loại chi tiết, Trích yếu, Mã ảnh]
-                    data = [datetime.now().strftime("%d/%m/%Y %H:%M"), muc_lon, loai_chi_tiet, trich_yeu, txt_anh]
-                    if save_data("VanBan", data):
+                    # Cấu trúc: Ngày | Mục Lớn | Loại | Trích yếu | Mã ảnh
+                    if save_data("VanBan", [datetime.now().strftime("%d/%m/%Y %H:%M"), muc_lon, loai_phu, trich_yeu, txt_anh]):
                         st.success("Đã lưu thành công!")
-            else: st.warning("Vui lòng điền đủ thông tin!")
+            else: st.warning("Điền thiếu thông tin!")
 
-# --- PHẦN 3: KHO VĂN BẢN ẢNH (BỐ CỤC MỚI) ---
+# --- 3. KHO VĂN BẢN (SỬA LỖI HIỂN THỊ) ---
 elif menu == "🖼 Kho văn bản ảnh":
     st.header("🖼 KHO LƯU TRỮ VĂN BẢN")
     df_v = load_data("VanBan")
@@ -100,23 +97,32 @@ elif menu == "🖼 Kho văn bản ảnh":
     if df_v.empty:
         st.info("Chưa có dữ liệu.")
     else:
-        # Lọc theo mục lớn để dễ tìm
-        loc_muc = st.tabs(["Văn bản cấp trên", "Văn bản Chi bộ", "Ảnh khác"])
+        tab1, tab2, tab3 = st.tabs(["Văn bản cấp trên", "Văn bản Chi bộ", "Ảnh khác"])
         
-        for i, ten_muc in enumerate(["Văn bản cấp trên", "Văn bản Chi bộ", "Ảnh khác"]):
-            with loc_muc[i]:
+        danh_muc = ["Văn bản cấp trên", "Văn bản Chi bộ", "Ảnh khác"]
+        cac_tab = [tab1, tab2, tab3]
+        
+        for i, ten_muc in enumerate(danh_muc):
+            with cac_tab[i]:
+                # Lọc đúng mục lớn (Cột thứ 2 - index 1)
                 df_loc = df_v[df_v.iloc[:, 1] == ten_muc]
                 if df_loc.empty:
-                    st.write("Trống.")
+                    st.write("Chưa có văn bản mục này.")
                 else:
-                    for index, row in df_loc.iterrows():
-                        with st.expander(f"[{row.iloc[2]}] - {row.iloc[3]}"):
-                            col1, col2 = st.columns([2, 1])
-                            with col1:
+                    for idx, row in df_loc.iterrows():
+                        # Tiêu đề: [Loại] - Trích yếu
+                        with st.expander(f"📄 [{row.iloc[2]}] - {row.iloc[3]}"):
+                            c1, c2 = st.columns([3, 1])
+                            with c1:
                                 try:
-                                    st.image(base64.b64decode(row.iloc[4]), use_container_width=True)
-                                except: st.error("Lỗi ảnh")
-                            with col2:
-                                st.write(f"📅 **Ngày lưu:** {row.iloc[0]}")
-                                st.write(f"📁 **Phân loại:** {row.iloc[2]}")
-                                st.write(f"📝 **Trích yếu:** {row.iloc[3]}")
+                                    # Lấy cột cuối cùng chứa mã Base64
+                                    ma_anh = str(row.iloc[-1]).strip()
+                                    if len(ma_anh) > 100: # Kiểm tra xem có phải mã ảnh không
+                                        st.image(base64.b64decode(ma_anh), use_container_width=True)
+                                    else:
+                                        st.error("Dữ liệu ảnh không hợp lệ.")
+                                except Exception as e:
+                                    st.error("Không thể giải mã ảnh.")
+                            with c2:
+                                st.write(f"📅 **Ngày:** {row.iloc[0]}")
+                                st.write(f"📝 **Nội dung:** {row.iloc[3]}")
