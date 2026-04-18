@@ -5,7 +5,7 @@ import io
 import time
 
 # ==========================================
-# 1. CẤU HÌNH & CSS TINH GỌN
+# 1. CẤU HÌNH & CSS (TẠO 2 KHỐI NỀN XANH)
 # ==========================================
 SHEET_ID = "1WKGPX3adetYHr7Z-yIegxADiRkrw8KWf5WZ6dQeIxPM" 
 URL_HOSO = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=HoSo"
@@ -14,40 +14,44 @@ st.set_page_config(page_title="QUẢN LÝ ĐẢNG VIÊN", layout="centered")
 
 st.markdown("""
     <style>
-    /* Nền và Tiêu đề đỏ gọn */
-    .stApp { background-color: #f8f9fa; }
+    .stApp { background-color: #f4f7f9; }
+    
+    /* TIÊU ĐỀ ĐỎ */
     .red-header {
         background-color: #cc0000; color: #ffcc00;
         padding: 15px; border-radius: 10px; text-align: center;
         font-weight: bold; border-bottom: 3px solid #ffcc00;
-        margin-bottom: 15px; text-transform: uppercase; font-size: 1.2rem;
+        margin-bottom: 25px; text-transform: uppercase;
     }
 
-    /* KHỐI LỚN BAO NGOÀI MÀU XANH LÁ ĐẬM */
-    .main-green-box {
+    /* ĐỊNH DẠNG 2 HÌNH CHỮ NHẬT NỀN XANH */
+    .stButton > button {
+        background-color: #2e7d32; 
+        color: white; 
+        border-radius: 15px;
+        padding: 40px 20px; 
+        font-size: 20px;
+        font-weight: bold;
+        width: 100%;
+        border: none;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .stButton > button:hover { background-color: #1b5e20; transform: scale(1.02); }
+
+    /* KHUNG NỘI DUNG CHI TIẾT */
+    .content-box {
         border: 2px solid #2e7d32;
         border-radius: 12px;
-        padding: 15px;
+        padding: 20px;
         background-color: #ffffff;
     }
-
-    /* TIÊU ĐỀ PHÂN PHẦN */
-    .sub-title {
-        color: #1b5e20; font-weight: bold;
-        display: flex; align-items: center; gap: 10px;
-        margin-top: 10px; margin-bottom: 10px;
-    }
-
-    /* NÚT BẤM TO GỌN */
-    .stButton > button {
-        background-color: #2e7d32; color: white; border-radius: 8px;
-        padding: 12px; font-weight: bold; width: 100%; border: none;
-    }
     
-    /* KHUNG CHI TIẾT KHI BẤM VÀO */
-    .detail-view {
-        background-color: #f1f8e9; border: 1px solid #c8e6c9;
-        padding: 15px; border-radius: 8px; margin-top: 10px;
+    /* NÚT QUAY LẠI */
+    .back-btn > button {
+        background-color: #78909c !important;
+        padding: 10px !important;
+        font-size: 14px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -59,68 +63,77 @@ def load_data(url):
     except: return pd.DataFrame()
 
 # ==========================================
-# 2. ĐĂNG NHẬP
+# 2. KIỂM TRA ĐĂNG NHẬP
 # ==========================================
 if 'auth' not in st.session_state: st.session_state.auth = False
+if 'menu' not in st.session_state: st.session_state.menu = "HOME"
 
 if not st.session_state.auth:
     st.markdown('<div class="red-header">QUẢN TRỊ CHI BỘ ẤP 4</div>', unsafe_allow_html=True)
     with st.form("login"):
-        u = st.text_input("Tài khoản:", value="Admin")
-        p = st.text_input("Mật khẩu:", type="password")
+        p = st.text_input("Mật khẩu truy cập:", type="password")
         if st.form_submit_button("VÀO HỆ THỐNG"):
             if p == "Tan@753496": st.session_state.auth = True; st.rerun()
             else: st.error("Sai mật khẩu!")
     st.stop()
 
 # ==========================================
-# 3. NỘI DUNG CHÍNH (BỎ HẾT PHẦN THỪA)
+# 3. NỘI DUNG SAU KHI ĐĂNG NHẬP
 # ==========================================
-st.markdown('<div class="red-header">HỒ SƠ ĐẢNG VIÊN</div>', unsafe_allow_html=True)
 
-# BẮT ĐẦU KHỐI XANH DUY NHẤT
-st.markdown('<div class="main-green-box">', unsafe_allow_html=True)
-
-# --- PHẦN DANH SÁCH ---
-st.markdown('<div class="sub-title">📋 DANH SÁCH HỌ TÊN & NGÀY SINH</div>', unsafe_allow_html=True)
-
-df = load_data(URL_HOSO)
-if not df.empty:
-    # Chỉ lấy Họ tên và Ngày sinh (Cột 2 và 3)
-    df_mini = df.iloc[:, [1, 2]]
-    df_mini.columns = ["HỌ VÀ TÊN", "NGÀY SINH"]
+# MÀN HÌNH CHÍNH: HIỆN 2 HÌNH CHỮ NHẬT NỀN XANH
+if st.session_state.menu == "HOME":
+    st.markdown('<div class="red-header">MENU QUẢN TRỊ</div>', unsafe_allow_html=True)
     
-    # Bảng gọn
-    sel = st.dataframe(df_mini, use_container_width=True, hide_index=True, on_select="rerun", selection_mode="single-row")
+    col1, col2 = st.columns(1) # Để dọc cho nút to, dễ bấm trên điện thoại
+    with col1:
+        if st.button("👤 HỒ SƠ ĐẢNG VIÊN"):
+            st.session_state.menu = "HOSO"
+            st.rerun()
+            
+        if st.button("➕ THÊM ĐẢNG VIÊN"):
+            st.session_state.menu = "THEM"
+            st.rerun()
+    
+    st.write("---")
+    if st.button("🚪 ĐĂNG XUẤT", key="out"):
+        st.session_state.auth = False; st.rerun()
 
-    # Hiện chi tiết ngay bên dưới khi chọn
-    if len(sel.selection.rows) > 0:
-        row = df.iloc[sel.selection.rows[0]]
-        st.markdown(f"""
-            <div class="detail-view">
-                <p><b>👤 Họ tên:</b> {row.iloc[1]}</p>
-                <p><b>🎂 Ngày sinh:</b> {row.iloc[2]}</p>
-                <p><b>🎖️ Chức vụ:</b> {row.iloc[3]}</p>
-                <p><b>📝 Ghi chú:</b> {row.iloc[4]}</p>
-            </div>
-        """, unsafe_allow_html=True)
-else:
-    st.write("Không tìm thấy dữ liệu.")
+# PHẦN 1: HỒ SƠ ĐẢNG VIÊN
+elif st.session_state.menu == "HOSO":
+    st.markdown('<div class="back-btn">', unsafe_allow_html=True)
+    if st.button("⬅️ QUAY LẠI"): st.session_state.menu = "HOME"; st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('<div class="red-header">DANH SÁCH HỒ SƠ</div>', unsafe_allow_html=True)
+    
+    st.markdown('<div class="content-box">', unsafe_allow_html=True)
+    df = load_data(URL_HOSO)
+    if not df.empty:
+        df_display = df.iloc[:, [1, 2]] # Chỉ lấy Họ tên và Ngày sinh
+        df_display.columns = ["HỌ VÀ TÊN", "NGÀY SINH"]
+        
+        st.write("*(Chạm vào tên để xem chi tiết)*")
+        sel = st.dataframe(df_display, use_container_width=True, hide_index=True, on_select="rerun", selection_mode="single-row")
+        
+        if len(sel.selection.rows) > 0:
+            row = df.iloc[sel.selection.rows[0]]
+            st.info(f"**CHI TIẾT:**\n\n- Chức vụ: {row.iloc[3]}\n- Ghi chú: {row.iloc[4]}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('<hr style="border: 0.5px solid #eee; margin: 20px 0;">', unsafe_allow_html=True)
-
-# --- PHẦN THÊM MỚI ---
-st.markdown('<div class="sub-title">➕ THÊM ĐẢNG VIÊN MỚI</div>', unsafe_allow_html=True)
-with st.form("add_new", clear_on_submit=True):
-    name = st.text_input("Họ và tên:")
-    dob = st.text_input("Ngày tháng năm sinh:")
-    pos = st.text_input("Chức vụ:")
-    if st.form_submit_button("LƯU HỒ SƠ"):
-        st.success(f"Đã ghi nhận: {name}")
-
-st.markdown('</div>', unsafe_allow_html=True) # KẾT THÚC KHỐI XANH
-
-# Nút thoát gọn dưới cùng
-if st.button("🚪 THOÁT"):
-    st.session_state.auth = False
-    st.rerun()
+# PHẦN 2: THÊM ĐẢNG VIÊN
+elif st.session_state.menu == "THEM":
+    st.markdown('<div class="back-btn">', unsafe_allow_html=True)
+    if st.button("⬅️ QUAY LẠI"): st.session_state.menu = "HOME"; st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('<div class="red-header">THÊM ĐẢNG VIÊN MỚI</div>', unsafe_allow_html=True)
+    
+    st.markdown('<div class="content-box">', unsafe_allow_html=True)
+    with st.form("add"):
+        st.text_input("Họ và tên:")
+        st.text_input("Ngày tháng năm sinh:")
+        st.text_input("Chức vụ:")
+        if st.form_submit_button("XÁC NHẬN LƯU"):
+            st.success("Đã ghi nhận dữ liệu!")
+    st.markdown('</div>', unsafe_allow_html=True)
