@@ -14,135 +14,137 @@ URL_VANBAN = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out
 st.set_page_config(page_title="CHI BỘ ẤP 4 - QUẢN TRỊ", layout="wide")
 
 # ==========================================
-# 2. GIAO DIỆN TÙY CHỈNH (CSS)
+# 2. GIAO DIỆN TÙY CHỈNH (CSS CAO CẤP)
 # ==========================================
 st.markdown("""
     <style>
-    /* Nền tổng thể */
-    .stApp { background-color: #fdfdfd; }
+    .stApp { background-color: #f4f7f9; }
 
-    /* Khung tiêu đề Đăng nhập màu đỏ cờ */
-    .login-header {
+    /* Container bao quanh để căn giữa */
+    .login-container {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    /* Khung tiêu đề đỏ: Gọn nhỏ, chữ vàng, căn giữa */
+    .login-header-mini {
         background-color: #cc0000;
-        padding: 20px;
-        border-radius: 8px 8px 0px 0px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-bottom: 3px solid #ffcc00; /* Đường viền vàng dưới chân */
+        padding: 15px;
+        border-radius: 10px 10px 0px 0px;
+        text-align: center;
+        border-bottom: 2px solid #ffcc00;
     }
     
-    .login-header h2 {
-        color: #ffcc00; /* Chữ vàng */
-        font-weight: 800;
-        margin-left: 15px;
-        font-size: 1.5rem;
+    .login-header-mini h2 {
+        color: #ffcc00;
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin: 0;
         text-transform: uppercase;
+        letter-spacing: 1px;
     }
 
-    /* Khối chứa Form đăng nhập */
-    .login-box {
+    /* Khối chứa Form: Bo sát khối đỏ, thanh mảnh */
+    .login-box-mini {
         background: white;
-        padding: 30px;
-        border-radius: 0px 0px 8px 8px;
-        border: 1px solid #eeeeee;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        padding: 25px;
+        border-radius: 0px 0px 10px 10px;
+        border: 1px solid #e0e6ed;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
 
-    /* Khối chức năng bên trong App */
     .premium-card {
         background-color: #ffffff;
         padding: 20px;
-        border-radius: 5px;
-        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        border: 1px solid #e0e6ed;
         margin-bottom: 20px;
     }
     
-    /* Chỉnh nút bấm */
     .stButton>button {
         background: #cc0000;
         color: white;
-        border-radius: 4px;
+        border-radius: 6px;
         font-weight: bold;
+        width: 100%;
+        height: 3em;
         border: none;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. PHẦN ĐĂNG NHẬP (CẬP NHẬT HÌNH CỜ ĐẢNG KHÔNG LỖI)
+# 3. PHẦN ĐĂNG NHẬP (GỌN NHỎ & CÂN ĐỐI)
 # ==========================================
 if 'admin_auth' not in st.session_state:
     st.session_state.admin_auth = False
 
 if not st.session_state.admin_auth:
-    st.markdown('<br><br><br>', unsafe_allow_html=True)
-    col_l, col_m, col_r = st.columns([1, 1.3, 1])
+    # Đẩy khối đăng nhập xuống giữa màn hình một chút
+    st.markdown('<div style="height: 15vh;"></div>', unsafe_allow_html=True)
+    
+    # Sử dụng cột để căn giữa tuyệt đối
+    col_l, col_m, col_r = st.columns([1, 1.2, 1])
     
     with col_m:
-        # Sử dụng mã SVG để vẽ hình Búa Liềm (Đảm bảo không bao giờ lỗi hình)
+        st.markdown('<div class="login-container">', unsafe_allow_html=True)
+        
+        # Tiêu đề đỏ gọn nhỏ
         st.markdown("""
-            <div class="login-header">
-                <svg width="50" height="50" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20 50L80 50M50 20L50 80" stroke="#ffcc00" stroke-width="8" stroke-linecap="round"/>
-                    <path d="M30 30C40 20 60 20 70 30C80 40 80 60 70 70C60 80 40 80 30 70C20 60 20 40 30 30Z" stroke="#ffcc00" stroke-width="5"/>
-                    <circle cx="50" cy="50" r="10" fill="#ffcc00"/>
-                </svg>
-                <div style="margin-left: 15px; text-align: left;">
-                    <h2 style="margin: 0; line-height: 1.2;">Hệ thống quản trị</h2>
-                    <h2 style="margin: 0; line-height: 1.2; font-size: 1.3rem; color: #ffffff;">Chi bộ Ấp 4</h2>
-                </div>
+            <div class="login-header-mini">
+                <h2>Hệ thống quản trị chi bộ Ấp 4</h2>
             </div>
         """, unsafe_allow_html=True)
         
-        # Khối nhập liệu bên dưới
-        st.markdown('<div class="login-box">', unsafe_allow_html=True)
+        # Form đăng nhập thanh mảnh
+        st.markdown('<div class="login-box-mini">', unsafe_allow_html=True)
         with st.form("login_form"):
-            # Chỉnh lại nhãn cho chuyên nghiệp
-            u = st.text_input("👤 Tài khoản:", value="Admin")
-            p = st.text_input("🔑 Mật khẩu:", type="password")
-            st.markdown('<br>', unsafe_allow_html=True)
+            u = st.text_input("Tài khoản:", value="Admin")
+            p = st.text_input("Mật khẩu:", type="password")
+            st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
             if st.form_submit_button("XÁC NHẬN TRUY CẬP"):
-                # Mật khẩu đồng chí yêu cầu: Tan@753496
                 if u == "Admin" and p == "Tan@753496":
                     st.session_state.admin_auth = True
-                    st.success("Đăng nhập thành công!")
+                    st.success("Đang vào hệ thống...")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("Thông tin đăng nhập không chính xác!")
-        st.markdown('</div>', unsafe_allow_html=True)
+                    st.error("Sai thông tin đăng nhập!")
+        st.markdown('</div></div>', unsafe_allow_html=True)
     st.stop()
 
 # ==========================================
-# 4. GIAO DIỆN SAU KHI VÀO HỆ THỐNG
+# 4. GIAO DIỆN CHÍNH
 # ==========================================
 with st.sidebar:
     st.markdown("""
-        <div style="text-align:center; padding:10px; background:#cc0000; border-radius:5px; margin-bottom:20px;">
-            <p style="color:#ffcc00; font-weight:bold; margin:0;">CHI BỘ ẤP 4</p>
+        <div style="text-align:center; padding:10px; background:#cc0000; border-radius:8px; margin-bottom:20px;">
+            <p style="color:#ffcc00; font-weight:bold; margin:0; font-size: 1.1rem;">CHI BỘ ẤP 4</p>
         </div>
     """, unsafe_allow_html=True)
-    menu = st.radio("CHỨC NĂNG:", ["🔍 Tìm kiếm", "👤 Đảng viên", "📂 Văn bản"])
-    if st.button("🚪 Thoát"):
+    menu = st.radio("MENU ĐIỀU HÀNH:", ["🔍 Tra cứu nhanh", "👤 Hồ sơ Đảng viên", "📂 Kho Văn bản"])
+    st.write("---")
+    if st.button("🚪 Đăng xuất"):
         st.session_state.admin_auth = False
         st.rerun()
 
-# Dữ liệu mẫu (Đồng chí thay bằng hàm load_data của mình)
-if menu == "🔍 Tìm kiếm":
-    st.markdown("### 🔎 TRA CỨU DỮ LIỆU")
+# --- NỘI DUNG CHI TIẾT ---
+if menu == "🔍 Tra cứu nhanh":
+    st.markdown("### 🔎 HỆ THỐNG TRA CỨU")
     st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-    st.text_input("Nhập từ khóa tìm kiếm...")
+    q = st.text_input("Nhập tên Đảng viên hoặc từ khóa cần tìm:")
     st.markdown('</div>', unsafe_allow_html=True)
 
-elif menu == "👤 Đảng viên":
-    st.markdown("### 👤 DANH SÁCH ĐẢNG VIÊN")
+elif menu == "👤 Hồ sơ Đảng viên":
+    st.markdown("### 👤 QUẢN LÝ HỒ SƠ")
     st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-    st.write("Dữ liệu Đảng viên sẽ hiển thị tại đây.")
+    st.info("Danh sách Đảng viên chi bộ Ấp 4.")
+    # Chỗ này đồng chí có thể dùng st.dataframe(df) để hiện bảng
     st.markdown('</div>', unsafe_allow_html=True)
 
-elif menu == "📂 Văn bản":
-    st.markdown("### 📂 KHO VĂN BẢN & BÁO CÁO")
+elif menu == "📂 Kho Văn bản":
+    st.markdown("### 📂 KHO LƯU TRỮ VĂN BẢN")
     st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-    st.file_uploader("Tải lên văn bản mới...")
+    st.file_uploader("Chọn ảnh văn bản/báo cáo từ thiết bị:", type=['jpg','png','pdf'])
+    st.button("LƯU VÀO KHO")
     st.markdown('</div>', unsafe_allow_html=True)
