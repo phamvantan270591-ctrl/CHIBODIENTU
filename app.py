@@ -70,7 +70,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. PHẦN ĐĂNG NHẬP (LÀM THEO Ý ĐỒNG CHÍ)
+# 3. PHẦN ĐĂNG NHẬP (CẬP NHẬT HÌNH CỜ ĐẢNG KHÔNG LỖI)
 # ==========================================
 if 'admin_auth' not in st.session_state:
     st.session_state.admin_auth = False
@@ -80,23 +80,34 @@ if not st.session_state.admin_auth:
     col_l, col_m, col_r = st.columns([1, 1.3, 1])
     
     with col_m:
-        # Khung đỏ có hình cờ Đảng và Tiêu đề
+        # Sử dụng mã SVG để vẽ hình Búa Liềm (Đảm bảo không bao giờ lỗi hình)
         st.markdown("""
             <div class="login-header">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Hammer_and_sickle.svg/1200px-Hammer_and_sickle.svg.png" width="50">
-                <h2>Hệ thống quản trị chi bộ Ấp 4</h2>
+                <svg width="50" height="50" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 50L80 50M50 20L50 80" stroke="#ffcc00" stroke-width="8" stroke-linecap="round"/>
+                    <path d="M30 30C40 20 60 20 70 30C80 40 80 60 70 70C60 80 40 80 30 70C20 60 20 40 30 30Z" stroke="#ffcc00" stroke-width="5"/>
+                    <circle cx="50" cy="50" r="10" fill="#ffcc00"/>
+                </svg>
+                <div style="margin-left: 15px; text-align: left;">
+                    <h2 style="margin: 0; line-height: 1.2;">Hệ thống quản trị</h2>
+                    <h2 style="margin: 0; line-height: 1.2; font-size: 1.3rem; color: #ffffff;">Chi bộ Ấp 4</h2>
+                </div>
             </div>
         """, unsafe_allow_html=True)
         
         # Khối nhập liệu bên dưới
         st.markdown('<div class="login-box">', unsafe_allow_html=True)
         with st.form("login_form"):
-            u = st.text_input("👤 Tài khoản Admin:")
+            # Chỉnh lại nhãn cho chuyên nghiệp
+            u = st.text_input("👤 Tài khoản:", value="Admin")
             p = st.text_input("🔑 Mật khẩu:", type="password")
             st.markdown('<br>', unsafe_allow_html=True)
-            if st.form_submit_button("ĐĂNG NHẬP HỆ THỐNG"):
+            if st.form_submit_button("XÁC NHẬN TRUY CẬP"):
+                # Mật khẩu đồng chí yêu cầu: Tan@753496
                 if u == "Admin" and p == "Tan@753496":
                     st.session_state.admin_auth = True
+                    st.success("Đăng nhập thành công!")
+                    time.sleep(1)
                     st.rerun()
                 else:
                     st.error("Thông tin đăng nhập không chính xác!")
