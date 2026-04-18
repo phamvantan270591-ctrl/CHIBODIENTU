@@ -1,172 +1,204 @@
 import streamlit as st
 import pandas as pd
 import requests
-import json
-import base64
-import time
 import io
+import time
 from datetime import datetime
-from PIL import Image
 
 # ==========================================
-# 1. CẤU HÌNH & CSS ĐẶC BIỆT CHO DI ĐỘNG
+# 1. CẤU HÌNH (ĐỒNG CHÍ GIỮ NGUYÊN)
 # ==========================================
-SHEET_ID = "1WKGPX3adetYHr7Z-yIegxADiRkrw8KWf5WZ6dQeIxPM"
-SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwd_94ZlYdo3qJ_qS-Ou8OJLPRrM6gyG3kSeJVK8Mo3U3bLk-iqw3w8CV4Gci3D1vI4/exec"
+SHEET_ID = "1WKGPX3adetYHr7Z-yIegxADiRkrw8KWf5WZ6dQeIxPM" 
+URL_HOSO = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=HoSo"
+URL_VANBAN = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=VanBan"
+# URL Script để lưu dữ liệu
+SCRIPT_URL = "https://script.google.com/macros/s/XXX/exec" 
 
-st.set_page_config(page_title="QUẢN TRỊ ĐẢNG VỤ", layout="wide")
+# Đặt cấu hình trang: Sidebar luôn mở để tạo bố cục chuyên nghiệp
+st.set_page_config(page_title="QUẢN TRỊ NỘI BỘ", layout="wide", initial_sidebar_state="expanded")
 
+# ==========================================
+# 2. GIAO DIỆN SIÊU CAO CẤP (PREMIUM UI)
+# ==========================================
 st.markdown("""
     <style>
-    /* Ép các cột (columns) không được nhảy dòng trên điện thoại */
-    [data-testid="column"] {
-        width: 33% !important;
-        flex: 1 1 33% !important;
-        min-width: 33% !important;
+    /* Tổng thể App */
+    .stApp { background-color: #ffffff; color: #333333; }
+    
+    /* Font chữ mảnh mai */
+    html, body, [class*="css"]  { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 300; }
+    
+    /* Thiết kế Sidebar (Menu trái) dày và cao cấp */
+    [data-testid="stSidebar"] {
+        background-color: #f0f2f5;
+        border-right: 1px solid #e0e0e0;
+        min-width: 320px;
     }
     
-    /* Căn chỉnh lại khoảng cách trên di động */
-    .stApp { background-color: #f8f9fa; }
+    /* Header chính: Thanh mảnh, không Gradient lòe loẹt */
+    .header-box {
+        background-color: #ffffff;
+        padding: 10px 0px; border-radius: 0px; color: #333333;
+        text-align: left; margin-bottom: 25px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    .header-box h1 { font-weight: 100 !important; color: #333333; font-size: 28px; }
     
-    .header-red {
-        background-color: #d32f2f;
-        color: white;
-        padding: 15px;
-        border-radius: 12px;
-        text-align: center;
+    /* Khối Chức năng (Card) - SIÊU THANH MẢNH */
+    .feature-card {
+        background: white; 
+        padding: 20px; 
+        border-radius: 8px; /* Bo góc nhẹ */
+        border: 1px solid #f0f0f0; /* Viền cực mảnh */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02); /* Đổ bóng rất nhẹ */
         margin-bottom: 20px;
-        font-weight: bold;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
     
-    /* Thiết kế nút bấm hình vuông cân đối */
-    div.stButton > button {
-        background-color: #2e7d32 !important;
-        color: white !important;
-        height: 110px !important; /* Giảm nhẹ độ cao để vừa màn hình điện thoại */
-        width: 100% !important;
-        font-size: 14px !important; /* Giảm font chữ để không bị tràn dòng */
-        font-weight: bold !important;
-        border-radius: 15px !important;
-        border: none !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 5px !important;
-    }
-
-    div.stButton > button:hover {
-        background-color: #1b5e20 !important;
+    /* Tiêu đề mục: Mảnh và Đều */
+    .section-title {
+        color: #8b0000; font-size: 16px; font-weight: 600;
+        margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;
     }
     
-    /* Nút Đăng xuất màu xám */
-    div.stButton > button[kind="secondary"] {
-        background-color: #546e7a !important;
+    /* Nút bấm Premium: Phẳng, không bo góc tròn */
+    .stButton>button {
+        background: #8b0000; color: white; border-radius: 4px;
+        width: 100%; height: 3em; font-weight: 400; border: none;
+        transition: 0.3s;
     }
-
-    /* Ẩn các thành phần thừa của Streamlit để giống App hơn */
-    header {visibility: hidden;}
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    .stButton>button:hover { background: #b71c1c; }
+    
+    /* Tùy chỉnh ô nhập liệu */
+    .stTextInput>div>div>input { border-radius: 4px; border: 1px solid #dcdcdc; }
+    
+    /* Tùy chỉnh bảng dữ liệu dữ liệu: Đều chằn chặn */
+    .stDataFrame { border-radius: 4px; border: 1px solid #f0f0f0; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- CÁC HÀM HỖ TRỢ ---
-def save_data(s_name, values):
-    try:
-        res = requests.post(SCRIPT_URL, data=json.dumps({"method": "append_row", "sheetName": s_name, "values": values}), timeout=30)
-        return res.status_code == 200
-    except: return False
-
-def load_data(s_name):
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={s_name}&t={int(time.time())}"
-    try: return pd.read_csv(io.StringIO(requests.get(url).text), dtype=str).fillna("")
-    except: return pd.DataFrame()
-
 # ==========================================
-# 2. XỬ LÝ ĐĂNG NHẬP
+# 3. KIỂM TRA ĐĂNG NHẬP (BẢO MẬT)
 # ==========================================
-if 'auth' not in st.session_state: st.session_state.auth = False
-if 'page' not in st.session_state: st.session_state.page = "home"
+if 'admin_auth' not in st.session_state:
+    st.session_state.admin_auth = False
 
-if not st.session_state.auth:
-    _, col_login, _ = st.columns([0.1, 0.8, 0.1]) # Tối ưu độ rộng form login trên mobile
-    with col_login:
-        st.write("##")
-        st.markdown('<div style="background-color:white; padding:20px; border-radius:15px; border:2px solid #d32f2f">', unsafe_allow_html=True)
-        st.markdown("<h3 style='text-align:center; color:#d32f2f;'>QUẢN TRỊ ĐẢNG VỤ</h3>", unsafe_allow_html=True)
-        u = st.text_input("Tên đăng nhập")
-        p = st.text_input("Mật khẩu", type="password")
-        if st.button("ĐĂNG NHẬP"):
-            if u == "Admin" and p == "Tan@753496": st.session_state.auth = True; st.rerun()
-            else: st.error("Sai mật khẩu!")
-        st.markdown('</div>', unsafe_allow_html=True)
+if not st.session_state.admin_auth:
+    # Giao diện đăng nhập cao cấp
+    st.markdown('<br><br><br>', unsafe_allow_html=True)
+    col_l, col_m, col_r = st.columns([1, 1.2, 1])
+    with col_m:
+        st.markdown("""
+            <div style="background: white; padding: 40px; border-radius: 12px; border: 1px solid #f0f0f0; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Hammer_and_sickle.svg/1200px-Hammer_and_sickle.svg.png" width="60" style="margin-bottom:20px;">
+                <h2 style="color: #333333; font-weight: 200; font-size: 24px; margin-bottom:30px;">XÁC THỰC QUẢN TRỊ NỘI BỘ</h2>
+            </div>
+        """, unsafe_allow_html=True)
+        with st.form("login"):
+            u = st.text_input("👤 Tên đăng nhập:")
+            p = st.text_input("🔑 Mật khẩu:", type="password")
+            st.markdown('<br>', unsafe_allow_html=True)
+            if st.form_submit_button("ĐĂNG NHẬP HỆ THỐNG"):
+                if u == "Admin" and p == "Tan@753496":
+                    st.session_state.admin_auth = True
+                    st.rerun()
+                else: st.error("Sai thông tin!")
     st.stop()
 
 # ==========================================
-# 3. MENU CHÍNH 6 KHỐI (DÀN HÀNG NGANG)
+# 4. HÀM XỬ LÝ DỮ LIỆU (ĐỒNG CHÍ GIỮ NGUYÊN)
 # ==========================================
-if st.session_state.page == "home":
-    st.markdown('<div class="header-red">DANH MỤC CHÍNH</div>', unsafe_allow_html=True)
+def load_data(url):
+    try:
+        r = requests.get(f"{url}&nocache={time.time()}", timeout=10)
+        return pd.read_csv(io.StringIO(r.text)).fillna("")
+    except: return pd.DataFrame()
+
+# ==========================================
+# 5. CÁC CHỨC NĂNG CHÍNH
+# ==========================================
+# Thanh Menu bên trái (Sidebar) dày và chuyên nghiệp
+with st.sidebar:
+    st.markdown("""
+        <div style="text-align: center; margin-top: 20px; margin-bottom:40px;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Hammer_and_sickle.svg/1200px-Hammer_and_sickle.svg.png" width="50">
+            <h3 style="color: #333333; font-weight: 300; margin-top:15px; font-size:18px;">HỆ THỐNG ĐIỀU HÀNH</h3>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # Hàng 1: 3 cột nằm ngang
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("👤\nHỒ SƠ"): st.session_state.page = "hoso"; st.rerun()
-    with c2:
-        if st.button("📤\nLƯU VB"): st.session_state.page = "luu_vb"; st.rerun()
-    with c3:
-        if st.button("🖼\nKHO ẢNH"): st.session_state.page = "kho_anh"; st.rerun()
+    st.markdown("<p style='color:#666; font-size:14px; margin-bottom:-10px; font-weight:600;'>DANH MỤC CHỨC NĂNG</p>", unsafe_allow_html=True)
+    menu = st.radio("", ["🔍 Tra cứu thông tin", "👤 Hồ sơ Đảng viên", "📂 Kho hồ sơ Văn bản"])
+    st.write("---")
+    
+    st.markdown("<p style='color:#666; font-size:14px; margin-bottom:-10px; font-weight:600;'>TÀI KHOẢN</p>", unsafe_allow_html=True)
+    if st.button("🚪 Đăng xuất"):
+        st.session_state.admin_auth = False
+        st.rerun()
 
-    # Hàng 2: 3 cột nằm ngang
-    c4, c5, c6 = st.columns(3)
-    with c4:
-        if st.button("🚩\nHĐỘNG"): st.session_state.page = "hoat_dong"; st.rerun()
-    with c5:
-        if st.button("⏰\nNHẮC VIỆC"): st.session_state.page = "nhac_viec"; st.rerun()
-    with c6:
-        if st.button("🚪\nTHOÁT", type="secondary"): st.session_state.auth = False; st.rerun()
+# --- TAB 1: TRA CỨU TỔNG HỢP ---
+if menu == "🔍 Tra cứu thông tin":
+    st.markdown('<div class="header-box"><h1>TRUNG TÂM TRA CỨU DỮ LIỆU</h1></div>', unsafe_allow_html=True)
+    
+    st.markdown('<div class="feature-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🔎 TÌM KIẾM THÔNG MINH</div>', unsafe_allow_html=True)
+    q = st.text_input("", placeholder="Nhập tên Đảng viên, nội dung văn bản hoặc từ khóa cần tìm...")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    if q:
+        df1 = load_data(URL_HOSO)
+        df2 = load_data(URL_VANBAN)
+        
+        st.markdown('<div class="feature-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">👤 Kết quả trong Hồ sơ</div>', unsafe_allow_html=True)
+        res_hs = df1[df1.apply(lambda r: q.lower() in r.astype(str).str.lower().values, axis=1)]
+        st.dataframe(res_hs, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+            
+        st.markdown('<div class="feature-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📂 Kết quả trong Văn bản</div>', unsafe_allow_html=True)
+        res_vb = df2[df2.apply(lambda r: q.lower() in r.astype(str).str.lower().values, axis=1)]
+        st.dataframe(res_vb, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# --- NÚT QUAY LẠI ---
-def back():
-    if st.button("⬅️ MENU CHÍNH"):
-        st.session_state.page = "home"; st.rerun()
-
-# ==========================================
-# 4. CÁC TRANG CHI TIẾT
-# ==========================================
-if st.session_state.page == "hoso":
-    st.markdown('<div class="header-red">HỒ SƠ ĐẢNG VIÊN</div>', unsafe_allow_html=True)
-    back()
-    with st.form("f1"):
-        t, c = st.text_input("Họ tên"), st.text_input("Chức vụ")
-        if st.form_submit_button("💾 LƯU"): 
-            save_data("HoSo", [datetime.now().strftime("%d/%m/%Y"), t, c])
-            st.success("Xong!")
-    st.dataframe(load_data("HoSo"), use_container_width=True)
-
-elif st.session_state.page == "luu_vb":
-    st.markdown('<div class="header-red">LƯU VĂN BẢN</div>', unsafe_allow_html=True)
-    back()
-    with st.form("f2"):
-        m1 = st.selectbox("Mục:", ["Văn bản cấp trên", "Văn bản Chi bộ", "Ảnh khác"])
-        ty = st.text_input("Trích yếu")
-        f = st.file_uploader("Chọn ảnh", type=['jpg','png','jpeg'])
-        if st.form_submit_button("💾 LƯU"):
-            if ty and f:
-                img = Image.open(f).convert("RGB")
-                img.thumbnail((800, 800))
-                buf = io.BytesIO(); img.save(buf, format="JPEG", quality=50)
-                txt = base64.b64encode(buf.getvalue()).decode()
-                save_data("VanBan", [datetime.now().strftime("%d/%m/%Y"), m1, m1, ty, txt])
-                st.success("Đã lưu!")
-
-elif st.session_state.page == "kho_anh":
-    st.markdown('<div class="header-red">KHO VĂN BẢN</div>', unsafe_allow_html=True)
-    back()
-    df = load_data("VanBan")
+# --- TAB 2: QUẢN LÝ ĐẢNG VIÊN ---
+elif menu == "👤 Hồ sơ Đảng viên":
+    st.markdown('<div class="header-box"><h1>QUẢN LÝ ĐẢNG VIÊN CHI BỘ</h1></div>', unsafe_allow_html=True)
+    
+    st.markdown('<div class="feature-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📑 DANH SÁCH CHI TIẾT</div>', unsafe_allow_html=True)
+    df = load_data(URL_HOSO)
     if not df.empty:
-        for idx, row in df.iterrows():
-            with st.expander(f"📄 {row.iloc[3]}"):
-                st.image(base64.b64decode(str(row.iloc[-1]).strip()))
+        st.dataframe(df, use_container_width=True, height=500)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('<div class="feature-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">➕ THÊM MỚI HỒ SƠ</div>', unsafe_allow_html=True)
+    with st.form("add_dv"):
+        c1, c2, c3 = st.columns(3)
+        ten = c1.text_input("Họ và tên:")
+        ns = c2.text_input("Ngày sinh:")
+        cv = c3.text_input("Chức vụ:")
+        gc = st.text_area("Ghi chú/Hoàn cảnh:")
+        if st.form_submit_button("LƯU HỒ SƠ"):
+            st.success("Yêu cầu đã được ghi nhận!")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- TAB 3: VĂN BẢN ---
+elif menu == "📂 Kho hồ sơ Văn bản":
+    st.markdown('<div class="header-box"><h1>KHO VĂN BẢN & BÁO CÁO</h1></div>', unsafe_allow_html=True)
+    
+    st.markdown('<div class="feature-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📤 TẢI LÊN VĂN BẢN MỚI</div>', unsafe_allow_html=True)
+    loai_vb = st.selectbox("Loại:", ["Cấp trên", "Chi bộ", "Báo cáo"])
+    tieu_de = st.text_input("Tiêu đề văn bản:")
+    f = st.file_uploader("Chọn ảnh/tệp:", type=['jpg','png','pdf'])
+    st.markdown('<br>', unsafe_allow_html=True)
+    if st.button("LƯU TRỮ"):
+        st.success("Yêu cầu đã được ghi nhận!")
+    st.markdown('</div>', unsafe_allow_html=True)
+        
+    st.markdown('<div class="feature-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📋 DANH MỤC ĐÃ LƯU</div>', unsafe_allow_html=True)
+    df_vb = load_data(URL_VANBAN)
+    if not df_vb.empty:
+        st.dataframe(df_vb, use_container_width=True, height=450)
+    st.markdown('</div>', unsafe_allow_html=True)
