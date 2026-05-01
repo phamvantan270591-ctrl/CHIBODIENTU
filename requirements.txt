@@ -3,3 +3,8 @@ pandas
 requests
 pandas
 pytz
+```txt
+streamlit
+pandas
+requests
+```
